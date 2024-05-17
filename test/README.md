@@ -1,0 +1,1 @@
+# getresolvd Integration Tests

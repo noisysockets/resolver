@@ -1,0 +1,24 @@
+{
+  "hosts": [
+    "localhost",
+    "127.0.0.1",
+    "::1"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "US",
+      "L": "San Francisco",
+      "O": "Internet Widgets, Inc.",
+      "OU": "WWW",
+      "ST": "California",
+      "CN": "localhost"
+    }
+  ],
+  "server": {
+    "expiry": "43800h"
+  }
+}
