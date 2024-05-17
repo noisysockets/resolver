@@ -12,3 +12,6 @@ replacement for [net.Resolver](https://pkg.go.dev/net#Resolver).
 
 * [ ] Implement more of the `net.Resolver` interface.
 * [ ] Add support for retries.
+* [ ] Parallel queries.
+* [ ] Host file support.
+* [ ] Plugin system for custom resolvers (ala Name Service Switch NSS).
