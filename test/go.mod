@@ -1,11 +1,11 @@
-module github.com/noisysockets/getresolvd/test
+module github.com/noisysockets/resolver/test
 
 go 1.22.0
 
-replace github.com/noisysockets/getresolvd => ../
+replace github.com/noisysockets/resolver => ../
 
 require (
-	github.com/noisysockets/getresolvd v0.0.0-00010101000000-000000000000
+	github.com/noisysockets/resolver v0.0.0-00010101000000-000000000000
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go v0.31.0
 )
@@ -31,6 +31,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/kevinburke/hostsfile v0.0.0-20220522040509-e5e984885321 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect

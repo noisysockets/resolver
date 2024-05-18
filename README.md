@@ -1,4 +1,4 @@
-# getresolvd
+# Resolver
 
 A minimal pure Go DNS resolver implementation, designed to be a drop in 
 replacement for [net.Resolver](https://pkg.go.dev/net#Resolver).
@@ -7,11 +7,12 @@ replacement for [net.Resolver](https://pkg.go.dev/net#Resolver).
 
 * Pure Go implementation.
 * DNS over UDP, TCP, and TLS.
+* Chainable query options.
+* Custom dialer support.
 
 ## TODOs
 
 * [ ] Implement more of the `net.Resolver` interface.
 * [ ] Add support for retries.
 * [ ] Parallel queries.
-* [ ] Host file support.
-* [ ] Plugin system for custom resolvers (ala Name Service Switch NSS).
+* [ ] Non recursive DNS server support.

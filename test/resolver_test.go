@@ -7,7 +7,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-package getresolvd_test
+package resolver_test
 
 import (
 	"context"
@@ -20,13 +20,25 @@ import (
 	"testing"
 	"time"
 
-	"github.com/noisysockets/getresolvd"
+	"github.com/noisysockets/resolver"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func TestResolver(t *testing.T) {
+func TestDefaultResolver(t *testing.T) {
+	res := resolver.Default
+
+	t.Run("LookupHost", func(t *testing.T) {
+		// Lookup a domain where we know the IP addresses.
+		addrs, err := res.LookupHost(context.Background(), "10.0.0.1.nip.io")
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"10.0.0.1"}, addrs)
+	})
+}
+
+func TestGoResolver(t *testing.T) {
 	dnsReq := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{
 			Context: "testdata",
@@ -52,9 +64,6 @@ func TestResolver(t *testing.T) {
 	dnsAddrs, err := net.LookupHost(dnsHost)
 	require.NoError(t, err)
 
-	resolver := getresolvd.DefaultResolver
-	resolver.Search = []string{"example.my.nzzy.net"}
-
 	// Bind startup can be a bit unpredictable.
 	time.Sleep(3 * time.Second)
 
@@ -64,27 +73,18 @@ func TestResolver(t *testing.T) {
 		dnsMappedPort, err := dnsC.MappedPort(ctx, "53/udp")
 		require.NoError(t, err)
 
-		// Create a new DNS resolver.
-		resolver := resolver
-		resolver.Protocol = getresolvd.ProtocolUDP
-		resolver.Servers = []netip.AddrPort{
-			netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
-		}
+		res := resolver.DNS(&resolver.DNSResolverConfig{
+			Protocol: resolver.ProtocolUDP,
+			Servers: []netip.AddrPort{
+				netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
+			},
+		})
 
 		t.Run("LookupHost", func(t *testing.T) {
-			t.Run("Fully Qualified", func(t *testing.T) {
-				addrs, err := resolver.LookupHost(ctx, "www1.example.my.nzzy.net")
-				require.NoError(t, err)
+			addrs, err := res.LookupHost(ctx, "www1.example.my.nzzy.net")
+			require.NoError(t, err)
 
-				require.Equal(t, []string{"192.168.1.2", "2001:db8::1"}, addrs)
-			})
-
-			t.Run("Relative", func(t *testing.T) {
-				addrs, err := resolver.LookupHost(ctx, "www2")
-				require.NoError(t, err)
-
-				require.Equal(t, []string{"192.168.1.3", "2001:db8::2"}, addrs)
-			})
+			require.Equal(t, []string{"192.168.1.2", "2001:db8::1"}, addrs)
 		})
 	})
 
@@ -92,40 +92,24 @@ func TestResolver(t *testing.T) {
 		dnsMappedPort, err := dnsC.MappedPort(ctx, "53/tcp")
 		require.NoError(t, err)
 
-		// Create a new DNS resolver.
-		resolver := resolver
-		resolver.Protocol = getresolvd.ProtocolTCP
-		resolver.Servers = []netip.AddrPort{
-			netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
-		}
+		res := resolver.DNS(&resolver.DNSResolverConfig{
+			Protocol: resolver.ProtocolTCP,
+			Servers: []netip.AddrPort{
+				netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
+			},
+		})
 
 		t.Run("LookupHost", func(t *testing.T) {
-			t.Run("Fully Qualified", func(t *testing.T) {
-				addrs, err := resolver.LookupHost(ctx, "www1.example.my.nzzy.net")
-				require.NoError(t, err)
+			addrs, err := res.LookupHost(ctx, "www1.example.my.nzzy.net")
+			require.NoError(t, err)
 
-				require.Equal(t, []string{"192.168.1.2", "2001:db8::1"}, addrs)
-			})
-
-			t.Run("Relative", func(t *testing.T) {
-				addrs, err := resolver.LookupHost(ctx, "www2")
-				require.NoError(t, err)
-
-				require.Equal(t, []string{"192.168.1.3", "2001:db8::2"}, addrs)
-			})
+			require.Equal(t, []string{"192.168.1.2", "2001:db8::1"}, addrs)
 		})
 	})
 
 	t.Run("TLS", func(t *testing.T) {
 		dnsMappedPort, err := dnsC.MappedPort(ctx, "853/tcp")
 		require.NoError(t, err)
-
-		// Create a new DNS resolver.
-		resolver := resolver
-		resolver.Protocol = getresolvd.ProtocolTLS
-		resolver.Servers = []netip.AddrPort{
-			netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
-		}
 
 		// Trust the self signed CA certificate.
 		caCertPEM, err := os.ReadFile("testdata/pki/ca.pem")
@@ -137,36 +121,20 @@ func TestResolver(t *testing.T) {
 
 		rootCAs := x509.NewCertPool()
 		rootCAs.AddCert(caCert)
-		resolver.TLSClientConfig = &tls.Config{
-			RootCAs: rootCAs,
-		}
 
-		t.Run("LookupHost", func(t *testing.T) {
-			t.Run("Fully Qualified", func(t *testing.T) {
-				addrs, err := resolver.LookupHost(ctx, "www1.example.my.nzzy.net")
-				require.NoError(t, err)
-
-				require.Equal(t, []string{"192.168.1.2", "2001:db8::1"}, addrs)
-			})
-
-			t.Run("Relative", func(t *testing.T) {
-				addrs, err := resolver.LookupHost(ctx, "www2")
-				require.NoError(t, err)
-
-				require.Equal(t, []string{"192.168.1.3", "2001:db8::2"}, addrs)
-			})
+		res := resolver.DNS(&resolver.DNSResolverConfig{
+			Protocol: resolver.ProtocolTLS,
+			Servers: []netip.AddrPort{
+				netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
+			},
+			TLSClientConfig: &tls.Config{
+				RootCAs: rootCAs,
+			},
 		})
-	})
-}
 
-func TestDefaultResolver(t *testing.T) {
-	resolver := getresolvd.DefaultResolver
-
-	t.Run("LookupHost", func(t *testing.T) {
-		// Lookup a domain where we know the IP addresses.
-		addrs, err := resolver.LookupHost(context.Background(), "10.0.0.1.nip.io")
+		addrs, err := res.LookupHost(ctx, "www1.example.my.nzzy.net")
 		require.NoError(t, err)
 
-		require.Equal(t, []string{"10.0.0.1"}, addrs)
+		require.Equal(t, []string{"192.168.1.2", "2001:db8::1"}, addrs)
 	})
 }

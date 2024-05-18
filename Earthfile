@@ -18,9 +18,8 @@ test:
   COPY go.mod go.sum .
   RUN go mod download
   COPY . .
-  # TODO: implement some unit tests 
-  # RUN go test -coverprofile=coverage.out -v ./...
-  # SAVE ARTIFACT coverage.out AS LOCAL coverage.out
+  RUN go test -coverprofile=coverage.out -v ./...
+  SAVE ARTIFACT coverage.out AS LOCAL coverage.out
   WORKDIR /workspace/test
   WITH DOCKER
     RUN go test -timeout=300s -v ./...

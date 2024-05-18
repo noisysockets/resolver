@@ -1,0 +1,20 @@
+# Format: IP_address hostname alias(optional)
+127.0.0.1       localhost
+::1             localhost ipv6-localhost ipv6-loopback
+127.0.1.1       mymachine.local mymachine
+
+# Testing server override
+192.168.1.10    testserver.local
+192.168.1.11    api.testserver.local
+2001:db8::1     testserver.local
+2001:db8::2     api.testserver.local
+
+# External service mock
+10.0.0.5        external-service.local
+2001:db8::5     external-service.local
+
+# Development environment
+10.0.0.10       dev.mysite.com
+2001:db8::10    dev.mysite.com
+
+# Additional entries can be added here
