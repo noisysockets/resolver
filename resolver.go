@@ -69,7 +69,7 @@ type Resolver interface {
 }
 
 // Default is the default resolver.
-var Default Resolver = DNS(&DNSResolverConfig{
+var Default Resolver = Chain(IP(), DNS(&DNSResolverConfig{
 	// Use Google's public DNS servers (DNS over TLS).
 	Protocol: ProtocolTLS,
 	Servers: []netip.AddrPort{
@@ -80,4 +80,4 @@ var Default Resolver = DNS(&DNSResolverConfig{
 	Rotate: true,
 	// Use a 5 second timeout for queries.
 	Timeout: 5 * time.Second,
-})
+}))

@@ -121,46 +121,6 @@ func (r *dnsResolver) LookupHost(ctx context.Context, host string) ([]string, er
 // host's IP addresses of the type specified by network. The network must be
 // one of "ip", "ip4" or "ip6".
 func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
-	// Is it an IP address of the correct family?
-	if addr, err := netip.ParseAddr(host); err == nil {
-		switch network {
-		case "ip":
-			// Nothing to do.
-		case "ip4":
-			if !addr.Unmap().Is4() {
-				return nil, &net.DNSError{
-					Err:        ErrNoSuchHost.Error(),
-					Name:       host,
-					IsNotFound: true,
-				}
-			}
-		case "ip6":
-			if !addr.Is6() {
-				return nil, &net.DNSError{
-					Err:        ErrNoSuchHost.Error(),
-					Name:       host,
-					IsNotFound: true,
-				}
-			}
-		default:
-			return nil, &net.DNSError{
-				Err:  ErrUnsupportedNetwork.Error(),
-				Name: host,
-			}
-		}
-		return []netip.Addr{addr}, nil
-	}
-
-	// Is it a domain name?
-	addrs, err := r.lookupHost(ctx, network, host)
-	if err != nil {
-		return nil, err
-	}
-
-	return addrs, nil
-}
-
-func (r *dnsResolver) lookupHost(ctx context.Context, network, host string) ([]netip.Addr, *net.DNSError) {
 	dnsErr := &net.DNSError{
 		Name: host,
 	}

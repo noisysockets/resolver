@@ -26,7 +26,7 @@ type chainResolver struct {
 
 // Chain returns a Resolver that chains the given resolvers. It tries each
 // resolver in order until one of them returns a non-nil result.
-func Chain(resolvers ...Resolver) Resolver {
+func Chain(resolvers ...Resolver) *chainResolver {
 	return &chainResolver{resolvers: resolvers}
 }
 

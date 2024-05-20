@@ -38,7 +38,7 @@ func TestDefaultResolver(t *testing.T) {
 	})
 }
 
-func TestGoResolver(t *testing.T) {
+func TestDNSResolver(t *testing.T) {
 	dnsReq := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{
 			Context: "testdata",
