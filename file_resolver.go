@@ -18,8 +18,8 @@ import (
 
 	hostsfile "github.com/kevinburke/hostsfile/lib"
 	"github.com/miekg/dns"
-	"github.com/noisysockets/resolver/internal/addrselect"
-	"github.com/noisysockets/resolver/internal/util"
+	"github.com/noisysockets/resolver/addrselect"
+	"github.com/noisysockets/resolver/util"
 )
 
 var (
@@ -29,6 +29,7 @@ var (
 // FileResolverConfig is the configuration for a hosts file resolver.
 type FileResolverConfig struct {
 	// DialContext is an optional function for creating network connections.
+	// It is used for ordering the returned addresses.
 	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
 }
 
@@ -40,12 +41,12 @@ type fileResolver struct {
 }
 
 // File creates a new hosts file resolver from the given reader.
-func File(r io.Reader, conf *FileResolverConfig) (*fileResolver, error) {
+func File(hostsfileReader io.Reader, conf *FileResolverConfig) (*fileResolver, error) {
 	if conf == nil {
 		conf = &FileResolverConfig{}
 	}
 
-	h, err := hostsfile.Decode(r)
+	h, err := hostsfile.Decode(hostsfileReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse hosts file: %w", err)
 	}
@@ -67,20 +68,13 @@ func File(r io.Reader, conf *FileResolverConfig) (*fileResolver, error) {
 		}
 	}
 
-	dialContext := (&net.Dialer{}).DialContext
-	if conf.DialContext != nil {
-		dialContext = conf.DialContext
-	}
-
 	return &fileResolver{
 		addrsByName: addrsByName,
 		namesByAddr: namesByAddr,
-		dialContext: dialContext,
+		dialContext: conf.DialContext,
 	}, nil
 }
 
-// LookupHost looks up the given host using the resolver. It returns a slice of
-// that host's addresses.
 func (r *fileResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
 	addrs, err := r.LookupNetIP(ctx, "ip", host)
 	if err != nil {
@@ -90,45 +84,39 @@ func (r *fileResolver) LookupHost(ctx context.Context, host string) ([]string, e
 	return util.Strings(addrs), nil
 }
 
-// LookupNetIP looks up host using the resolver. It returns a slice of that
-// host's IP addresses of the type specified by network. The network must be
-// one of "ip", "ip4" or "ip6".
 func (r *fileResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
+	dnsErr := &net.DNSError{
+		Name: host,
+	}
+
 	allAddrs, ok := r.addrsByName[dns.Fqdn(host)]
 	if !ok {
-		return nil, &net.DNSError{
+		return nil, extendDNSError(dnsErr, net.DNSError{
 			Err:        ErrNoSuchHost.Error(),
-			Name:       host,
 			IsNotFound: true,
+		})
+	}
+
+	if network != "ip" && network != "ip4" && network != "ip6" {
+		return nil, extendDNSError(dnsErr, net.DNSError{
+			Err: ErrUnsupportedNetwork.Error(),
+		})
+	}
+
+	addrs, err := util.FilterAddresses(allAddrs, network)
+	if err != nil {
+		return nil, extendDNSError(dnsErr, net.DNSError{
+			Err: err.Error(),
+		})
+	}
+
+	if r.dialContext != nil {
+		dial := func(network, address string) (net.Conn, error) {
+			return r.dialContext(ctx, network, address)
 		}
-	}
 
-	var addrs []netip.Addr
-	for _, addr := range allAddrs {
-		switch network {
-		case "ip":
-			addrs = append(addrs, addr)
-		case "ip4":
-			if addr.Unmap().Is4() {
-				addrs = append(addrs, addr)
-			}
-		case "ip6":
-			if addr.Is6() {
-				addrs = append(addrs, addr)
-			}
-		default:
-			return nil, &net.DNSError{
-				Err:  ErrUnsupportedNetwork.Error(),
-				Name: host,
-			}
-		}
+		addrselect.SortByRFC6724(dial, addrs)
 	}
-
-	dial := func(network, address string) (net.Conn, error) {
-		return r.dialContext(ctx, network, address)
-	}
-
-	addrselect.SortByRFC6724(dial, addrs)
 
 	return addrs, nil
 }

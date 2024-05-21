@@ -30,7 +30,7 @@ func TestDefaultResolver(t *testing.T) {
 	res := resolver.Default
 
 	t.Run("LookupHost", func(t *testing.T) {
-		// Lookup a domain where we know the IP addresses.
+		// Lookup a public domain where we know the IP addresses.
 		addrs, err := res.LookupHost(context.Background(), "10.0.0.1.nip.io")
 		require.NoError(t, err)
 
@@ -75,9 +75,7 @@ func TestDNSResolver(t *testing.T) {
 
 		res := resolver.DNS(&resolver.DNSResolverConfig{
 			Protocol: resolver.ProtocolUDP,
-			Servers: []netip.AddrPort{
-				netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
-			},
+			Server:   netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
 		})
 
 		t.Run("LookupHost", func(t *testing.T) {
@@ -94,9 +92,7 @@ func TestDNSResolver(t *testing.T) {
 
 		res := resolver.DNS(&resolver.DNSResolverConfig{
 			Protocol: resolver.ProtocolTCP,
-			Servers: []netip.AddrPort{
-				netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
-			},
+			Server:   netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
 		})
 
 		t.Run("LookupHost", func(t *testing.T) {
@@ -124,9 +120,7 @@ func TestDNSResolver(t *testing.T) {
 
 		res := resolver.DNS(&resolver.DNSResolverConfig{
 			Protocol: resolver.ProtocolTLS,
-			Servers: []netip.AddrPort{
-				netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
-			},
+			Server:   netip.AddrPortFrom(netip.MustParseAddr(dnsAddrs[0]), uint16(dnsMappedPort.Int())),
 			TLSClientConfig: &tls.Config{
 				RootCAs: rootCAs,
 			},

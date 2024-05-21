@@ -14,18 +14,17 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/noisysockets/resolver/internal/util"
+	"github.com/noisysockets/resolver/util"
 )
 
+// ipResolver is a resolver that looks up IP address strings.
 type ipResolver struct{}
 
-// IP returns a resolver that looks up IP addresses.
+// IP returns a resolver that looks up IP address strings.
 func IP() Resolver {
 	return &ipResolver{}
 }
 
-// LookupHost looks up the given host using the resolver. It returns a slice of
-// that host's addresses.
 func (r *ipResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
 	addrs, err := r.LookupNetIP(ctx, "ip", host)
 	if err != nil {
@@ -35,9 +34,6 @@ func (r *ipResolver) LookupHost(ctx context.Context, host string) ([]string, err
 	return util.Strings(addrs), nil
 }
 
-// LookupNetIP looks up host using the resolver. It returns a slice of that
-// host's IP addresses of the type specified by network. The network must be
-// one of "ip", "ip4" or "ip6".
 func (r *ipResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
 	// Is it an IP address of the correct family?
 	if addr, err := netip.ParseAddr(host); err == nil {
@@ -66,7 +62,7 @@ func (r *ipResolver) LookupNetIP(ctx context.Context, network, host string) ([]n
 				Name: host,
 			}
 		}
-		return []netip.Addr{addr}, nil
+		return []netip.Addr{addr.Unmap()}, nil
 	}
 
 	return nil, &net.DNSError{

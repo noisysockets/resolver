@@ -4,6 +4,7 @@ go 1.22.0
 
 require (
 	dario.cat/mergo v1.0.0
+	github.com/avast/retry-go/v4 v4.6.0
 	github.com/kevinburke/hostsfile v0.0.0-20220522040509-e5e984885321
 	github.com/miekg/dns v1.1.59
 	github.com/stretchr/testify v1.9.0

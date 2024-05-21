@@ -40,8 +40,10 @@
 package resolver
 
 import (
+	"context"
 	"errors"
 	"net"
+	"os"
 
 	"dario.cat/mergo"
 )
@@ -59,4 +61,15 @@ func extendDNSError(dst *net.DNSError, src net.DNSError) *net.DNSError {
 	}
 
 	return dst
+}
+
+func isTimeout(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err)
+}
+
+func isTemporary(err error) bool {
+	if dnsErr, ok := err.(*net.DNSError); ok {
+		return dnsErr.Temporary()
+	}
+	return false
 }

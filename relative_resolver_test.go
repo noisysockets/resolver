@@ -28,7 +28,7 @@ func TestRelativeResolver(t *testing.T) {
 
 	res := resolver.Relative(inner, &resolver.RelativeResolverConfig{
 		Search: []string{"example.com."},
-		Ndots:  1,
+		NDots:  1,
 	})
 
 	t.Run("LookupHost", func(t *testing.T) {

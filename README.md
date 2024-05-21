@@ -13,6 +13,5 @@ replacement for [net.Resolver](https://pkg.go.dev/net#Resolver).
 ## TODOs
 
 * [ ] Implement more of the `net.Resolver` interface.
-* [ ] Add support for retries.
 * [ ] Parallel queries.
 * [ ] Non recursive DNS server support.

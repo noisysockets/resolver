@@ -13,26 +13,33 @@ import (
 	"context"
 	"net"
 	"net/netip"
+
+	"github.com/noisysockets/resolver/util"
 )
 
 var (
-	_ Resolver = (*chainResolver)(nil)
+	_ Resolver = (*roundRobinResolver)(nil)
 )
 
-// chainResolver is a Resolver that chains multiple resolvers.
-type chainResolver struct {
+// roundRobinResolver is a Resolver that load balances between multiple resolvers by
+// chaining them in a random order.
+type roundRobinResolver struct {
 	resolvers []Resolver
 }
 
-// Chain returns a Resolver that chains the given resolvers. It tries each
-// resolver in order until one of them returns a non-nil result.
-func Chain(resolvers ...Resolver) *chainResolver {
-	return &chainResolver{resolvers: resolvers}
+// RoundRobin returns a Resolver that load balances between multiple resolvers by
+// chaining them in a random order.
+func RoundRobin(resolvers ...Resolver) *roundRobinResolver {
+	return &roundRobinResolver{resolvers: resolvers}
 }
 
-func (r *chainResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
+func (r *roundRobinResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
+	resolvers := make([]Resolver, len(r.resolvers))
+	copy(resolvers, r.resolvers)
+	resolvers = util.Shuffle(resolvers)
+
 	var firstErr error
-	for _, resolver := range r.resolvers {
+	for _, resolver := range resolvers {
 		addrs, err := resolver.LookupHost(ctx, host)
 		if err == nil {
 			return addrs, nil
@@ -52,9 +59,13 @@ func (r *chainResolver) LookupHost(ctx context.Context, host string) ([]string, 
 	}
 }
 
-func (r *chainResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
+func (r *roundRobinResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
+	resolvers := make([]Resolver, len(r.resolvers))
+	copy(resolvers, r.resolvers)
+	resolvers = util.Shuffle(resolvers)
+
 	var firstErr error
-	for _, resolver := range r.resolvers {
+	for _, resolver := range resolvers {
 		addrs, err := resolver.LookupNetIP(ctx, network, host)
 		if err == nil {
 			return addrs, nil

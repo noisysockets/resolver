@@ -42,7 +42,6 @@ package resolver
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -50,25 +49,23 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/noisysockets/resolver/internal/addrselect"
-	"github.com/noisysockets/resolver/internal/util"
+	"github.com/noisysockets/resolver/addrselect"
+	"github.com/noisysockets/resolver/util"
 )
 
 var (
 	_ Resolver = (*dnsResolver)(nil)
 )
 
+// DNSResolverConfig is the configuration for a DNS resolver.
 type DNSResolverConfig struct {
 	// Protocol is the protocol used for DNS resolution.
 	Protocol Protocol
-	// Servers is the list of DNS servers to query.
-	Servers []netip.AddrPort
-	// Rotate specifies whether to rotate the list of DNS servers for
-	// load balancing (eg. round-robin).
-	Rotate bool
+	// Server is the DNS server to query.
+	Server netip.AddrPort
 	// Timeout is the maximum duration to wait for a query to complete
 	// (including retries).
-	Timeout time.Duration
+	Timeout *time.Duration
 	// DialContext is used to establish a connection to a DNS server.
 	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
 	// TLSClientConfig is the configuration for the TLS client used for DNS over TLS.
@@ -78,9 +75,8 @@ type DNSResolverConfig struct {
 // dnsResolver is a DNS resolver written in pure Go.
 type dnsResolver struct {
 	protocol        Protocol
-	servers         []netip.AddrPort
-	rotate          bool
-	timeout         time.Duration
+	server          netip.AddrPort
+	timeout         *time.Duration
 	dialContext     func(ctx context.Context, network, address string) (net.Conn, error)
 	tlsClientConfig *tls.Config
 }
@@ -98,16 +94,13 @@ func DNS(conf *DNSResolverConfig) *dnsResolver {
 
 	return &dnsResolver{
 		protocol:        conf.Protocol,
-		servers:         conf.Servers,
-		rotate:          conf.Rotate,
+		server:          conf.Server,
 		timeout:         conf.Timeout,
 		dialContext:     dialContext,
 		tlsClientConfig: conf.TLSClientConfig,
 	}
 }
 
-// LookupHost looks up the given host using the resolver. It returns a slice of
-// that host's addresses.
 func (r *dnsResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
 	addrs, err := r.LookupNetIP(ctx, "ip", host)
 	if err != nil {
@@ -117,9 +110,6 @@ func (r *dnsResolver) LookupHost(ctx context.Context, host string) ([]string, er
 	return util.Strings(addrs), nil
 }
 
-// LookupNetIP looks up host using the resolver. It returns a slice of that
-// host's IP addresses of the type specified by network. The network must be
-// one of "ip", "ip4" or "ip6".
 func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
 	dnsErr := &net.DNSError{
 		Name: host,
@@ -133,8 +123,10 @@ func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 		})
 	}
 
-	client := &dns.Client{
-		Timeout: r.timeout,
+	client := &dns.Client{}
+
+	if r.timeout != nil {
+		client.Timeout = *r.timeout
 	}
 
 	switch r.protocol {
@@ -149,14 +141,6 @@ func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 		return nil, extendDNSError(dnsErr, net.DNSError{
 			Err: ErrUnsupportedProtocol.Error(),
 		})
-	}
-
-	// Rotate the nameserver list for load balancing.
-	servers := r.servers
-	if r.rotate {
-		servers = make([]netip.AddrPort, len(r.servers))
-		copy(servers, r.servers)
-		servers = util.Shuffle(servers)
 	}
 
 	var qTypes []uint16
@@ -175,52 +159,43 @@ func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 
 	name := dns.Fqdn(host)
 
-	var firstErr *net.DNSError
 	var addrs []netip.Addr
-	for _, server := range servers {
-		for _, qType := range qTypes {
-			reply, err := r.tryOneName(ctx, client, server, name, qType)
-			if err != nil {
-				if firstErr == nil {
-					firstErr = err
-				}
-				continue
-			}
-
-			// We asked for recursion, so it should have included all the
-			// answers we need in this one packet.
-			//
-			// Further, RFC 1034 section 4.3.1 says that "the recursive
-			// response to a query will be... The answer to the query,
-			// possibly preface by one or more CNAME RRs that specify
-			// aliases encountered on the way to an answer."
-			//
-			// Therefore, we should be able to assume that we can ignore
-			// CNAMEs and that the A and AAAA records we requested are
-			// for the canonical name.
-
-			for _, rr := range reply.Answer {
-				switch rr := rr.(type) {
-				case *dns.A:
-					addrs = append(addrs, netip.AddrFrom4([4]byte(rr.A.To4())))
-				case *dns.AAAA:
-					addrs = append(addrs, netip.AddrFrom16([16]byte(rr.AAAA.To16())))
-				}
-			}
+	for _, qType := range qTypes {
+		reply, err := r.tryOneName(ctx, client, r.server, name, qType)
+		if err != nil {
+			return nil, err
 		}
 
-		if len(addrs) > 0 {
-			dial := func(network, address string) (net.Conn, error) {
-				return r.dialContext(ctx, network, address)
+		// We asked for recursion, so it should have included all the
+		// answers we need in this one packet.
+		//
+		// Further, RFC 1034 section 4.3.1 says that "the recursive
+		// response to a query will be... The answer to the query,
+		// possibly preface by one or more CNAME RRs that specify
+		// aliases encountered on the way to an answer."
+		//
+		// Therefore, we should be able to assume that we can ignore
+		// CNAMEs and that the A and AAAA records we requested are
+		// for the canonical name.
+
+		for _, rr := range reply.Answer {
+			switch rr := rr.(type) {
+			case *dns.A:
+				addrs = append(addrs, netip.AddrFrom4([4]byte(rr.A.To4())))
+			case *dns.AAAA:
+				addrs = append(addrs, netip.AddrFrom16([16]byte(rr.AAAA.To16())))
 			}
-
-			addrselect.SortByRFC6724(dial, addrs)
-
-			return addrs, nil
 		}
 	}
-	if firstErr != nil {
-		return nil, firstErr
+
+	if len(addrs) > 0 {
+		dial := func(network, address string) (net.Conn, error) {
+			return r.dialContext(ctx, network, address)
+		}
+
+		addrselect.SortByRFC6724(dial, addrs)
+
+		return addrs, nil
 	}
 
 	return nil, extendDNSError(dnsErr, net.DNSError{
@@ -233,8 +208,7 @@ func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client,
 	server netip.AddrPort, name string, qType uint16) (*dns.Msg, *net.DNSError) {
 
 	dnsErr := &net.DNSError{
-		Server: server.String(),
-		Name:   name,
+		Name: name,
 	}
 
 	if client.Timeout != 0 {
@@ -250,12 +224,13 @@ func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client,
 			server = netip.AddrPortFrom(server.Addr(), 853)
 		}
 	}
+	dnsErr.Server = server.String()
 
 	conn, err := r.dialContext(ctx, strings.TrimSuffix(client.Net, "-tls"), server.String())
 	if err != nil {
 		return nil, extendDNSError(dnsErr, net.DNSError{
 			Err:         err.Error(),
-			IsTimeout:   errors.Is(err, context.DeadlineExceeded),
+			IsTimeout:   isTimeout(err),
 			IsTemporary: true,
 		})
 	}
@@ -273,7 +248,7 @@ func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client,
 			// Handshake errors are not likely to be temporary.
 			return nil, extendDNSError(dnsErr, net.DNSError{
 				Err:       err.Error(),
-				IsTimeout: errors.Is(err, context.DeadlineExceeded),
+				IsTimeout: isTimeout(err),
 			})
 		}
 	}
@@ -286,7 +261,7 @@ func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client,
 	if err != nil {
 		return nil, extendDNSError(dnsErr, net.DNSError{
 			Err:         err.Error(),
-			IsTimeout:   errors.Is(err, context.DeadlineExceeded),
+			IsTimeout:   isTimeout(err),
 			IsTemporary: true,
 		})
 	}

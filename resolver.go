@@ -43,6 +43,8 @@ import (
 	"context"
 	"net/netip"
 	"time"
+
+	"github.com/noisysockets/resolver/util"
 )
 
 // Protocol is the protocol used for DNS resolution.
@@ -69,15 +71,13 @@ type Resolver interface {
 }
 
 // Default is the default resolver.
-var Default Resolver = Chain(IP(), DNS(&DNSResolverConfig{
-	// Use Google's public DNS servers (DNS over TLS).
+// By default, it uses Google's public DNS servers (DNS over TLS).
+var Default Resolver = Chain(IP(), RoundRobin(DNS(&DNSResolverConfig{
 	Protocol: ProtocolTLS,
-	Servers: []netip.AddrPort{
-		netip.AddrPortFrom(netip.MustParseAddr("8.8.8.8"), 853),
-		netip.AddrPortFrom(netip.MustParseAddr("8.8.4.4"), 853),
-	},
-	// Enable load balancing.
-	Rotate: true,
-	// Use a 5 second timeout for queries.
-	Timeout: 5 * time.Second,
-}))
+	Server:   netip.AddrPortFrom(netip.MustParseAddr("8.8.8.8"), 853),
+	Timeout:  util.PointerTo(5 * time.Second),
+}), DNS(&DNSResolverConfig{
+	Protocol: ProtocolTLS,
+	Server:   netip.AddrPortFrom(netip.MustParseAddr("8.8.4.4"), 853),
+	Timeout:  util.PointerTo(5 * time.Second),
+})))

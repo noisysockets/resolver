@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/miekg/dns"
-	"github.com/noisysockets/resolver/internal/util"
+	"github.com/noisysockets/resolver/util"
 )
 
 var (
@@ -27,8 +27,8 @@ var (
 type RelativeResolverConfig struct {
 	// Search is a list of rooted suffixes to append to the relative name.
 	Search []string
-	// Ndots is the number of dots in a name to trigger an absolute lookup.
-	Ndots int
+	// NDots is the number of dots in a name to trigger an absolute lookup.
+	NDots int
 }
 
 // relativeResolver is a Resolver that resolves relative domain names.
@@ -43,19 +43,17 @@ func Relative(inner Resolver, conf *RelativeResolverConfig) *relativeResolver {
 	if conf == nil {
 		conf = &RelativeResolverConfig{
 			Search: []string{"."},
-			Ndots:  1,
+			NDots:  1,
 		}
 	}
 
 	return &relativeResolver{
 		inner:  inner,
 		search: conf.Search,
-		ndots:  conf.Ndots,
+		ndots:  conf.NDots,
 	}
 }
 
-// LookupHost looks up the given host using the resolvers. It returns a slice
-// of that host's addresses.
 func (r *relativeResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
 	addrs, err := r.LookupNetIP(ctx, "ip", host)
 	if err != nil {
@@ -65,9 +63,6 @@ func (r *relativeResolver) LookupHost(ctx context.Context, host string) ([]strin
 	return util.Strings(addrs), nil
 }
 
-// LookupNetIP looks up host using the resolvers. It returns a slice of that
-// host's IP addresses of the type specified by network. The network must be
-// one of "ip", "ip4" or "ip6".
 func (r *relativeResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
 	var names []string
 	if ndots := strings.Count(host, "."); ndots < r.ndots {
@@ -75,9 +70,9 @@ func (r *relativeResolver) LookupNetIP(ctx context.Context, network, host string
 		// domains to the name.
 		labels := dns.SplitDomainName(host)
 		for _, search := range r.search {
-			name := dns.Fqdn(strings.Join(append(labels, search), "."))
+			name := dns.Fqdn(strings.Join(append(labels, dns.SplitDomainName(search)...), "."))
 			if _, ok := dns.IsDomainName(name); ok {
-				names = append(names, dns.Fqdn(name))
+				names = append(names, name)
 			}
 		}
 	} else {

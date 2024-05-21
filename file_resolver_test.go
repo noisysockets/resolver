@@ -19,10 +19,13 @@ import (
 )
 
 func TestFileResolver(t *testing.T) {
-	f, err := os.Open("testdata/hosts")
+	hostsfileReader, err := os.Open("testdata/hosts")
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, hostsfileReader.Close())
+	})
 
-	res, err := resolver.File(f, nil)
+	res, err := resolver.File(hostsfileReader, nil)
 	require.NoError(t, err)
 
 	t.Run("LookupHost", func(t *testing.T) {
