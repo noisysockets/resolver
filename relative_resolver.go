@@ -68,9 +68,8 @@ func (r *relativeResolver) LookupNetIP(ctx context.Context, network, host string
 	if ndots := strings.Count(host, "."); ndots < r.ndots {
 		// If the name has fewer dots than the threshold, append the search
 		// domains to the name.
-		labels := dns.SplitDomainName(host)
-		for _, search := range r.search {
-			name := dns.Fqdn(strings.Join(append(labels, dns.SplitDomainName(search)...), "."))
+		for _, domain := range r.search {
+			name := util.Join(host, domain)
 			if _, ok := dns.IsDomainName(name); ok {
 				names = append(names, name)
 			}
