@@ -20,16 +20,16 @@ var (
 	_ Resolver = (*retryResolver)(nil)
 )
 
-type retryResolver struct {
-	inner    Resolver
-	attempts int
-}
-
 // RetryResolverConfig is the configuration for a retry resolver.
 type RetryResolverConfig struct {
 	// Attempts is the number of attempts to make before giving up.
 	// Setting this to 0 will cause the resolver to retry forever.
 	Attempts int
+}
+
+type retryResolver struct {
+	inner    Resolver
+	attempts int
 }
 
 // Retry creates a new resolver that retries the inner resolver a configurable

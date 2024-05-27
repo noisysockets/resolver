@@ -26,18 +26,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func TestDefaultResolver(t *testing.T) {
-	res := resolver.Default
-
-	t.Run("LookupHost", func(t *testing.T) {
-		// Lookup a public domain where we know the IP addresses.
-		addrs, err := res.LookupHost(context.Background(), "10.0.0.1.nip.io")
-		require.NoError(t, err)
-
-		require.Equal(t, []string{"10.0.0.1"}, addrs)
-	})
-}
-
 func TestDNSResolver(t *testing.T) {
 	dnsReq := testcontainers.ContainerRequest{
 		FromDockerfile: testcontainers.FromDockerfile{

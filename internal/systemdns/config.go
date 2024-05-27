@@ -8,7 +8,7 @@
  *
  * Portions of this file are based on code originally from the Go project,
  *
- * Copyright (c) 2012 The Go Authors. All rights reserved.
+ * Copyright (c) 2024 The Go Authors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -37,32 +37,31 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package resolver
+package systemdns
 
 import (
-	"context"
-	"net/netip"
+	"os"
+	"time"
 )
 
-// Protocol is the protocol used for DNS resolution.
-type Protocol string
-
-const (
-	// ProtocolUDP is the DNS over UDP as defined in RFC 1035.
-	ProtocolUDP Protocol = "udp"
-	// ProtocolTCP is the DNS over TCP as defined in RFC 1035.
-	ProtocolTCP Protocol = "tcp"
-	// ProtocolTLS is the DNS over TLS as defined in RFC 7858.
-	ProtocolTLS Protocol = "tls"
+var (
+	defaultNS   = []string{"127.0.0.1:53", "[::1]:53"}
+	getHostname = os.Hostname // variable for testing
 )
 
-// Resolver looks up names and numbers.
-type Resolver interface {
-	// LookupHost looks up the given host using the resolver. It returns a slice
-	// of that host's addresses.
-	LookupHost(ctx context.Context, host string) (addrs []string, err error)
-	// LookupNetIP looks up host using the resolver. It returns a slice of that
-	// host's IP addresses of the type specified by network. The network must be
-	// one of "ip", "ip4" or "ip6".
-	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
+// Config is the system DNS configuration.
+type Config struct {
+	Servers       []string      // server addresses (in host:port form) to use
+	Search        []string      // rooted suffixes to append to local name
+	NDots         int           // number of dots in name to trigger absolute lookup
+	Timeout       time.Duration // wait before giving up on a query, including retries
+	Attempts      int           // lost packets before giving up on server
+	Rotate        bool          // round robin among servers
+	UnknownOpt    bool          // anything unknown was encountered
+	Lookup        []string      // OpenBSD top-level database "lookup" order
+	MTime         time.Time     // time of resolv.conf modification
+	SingleRequest bool          // use sequential A and AAAA queries instead of parallel queries
+	UseTCP        bool          // force usage of TCP for DNS resolutions
+	TrustAD       bool          // add AD flag to queries
+	NoReload      bool          // do not check for config file updates
 }

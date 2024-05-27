@@ -63,8 +63,7 @@ type DNSResolverConfig struct {
 	Protocol Protocol
 	// Server is the DNS server to query.
 	Server netip.AddrPort
-	// Timeout is the maximum duration to wait for a query to complete
-	// (including retries).
+	// Timeout is the maximum duration to wait for a query to complete.
 	Timeout *time.Duration
 	// DialContext is used to establish a connection to a DNS server.
 	DialContext func(ctx context.Context, network, address string) (net.Conn, error)

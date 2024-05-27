@@ -64,18 +64,22 @@ func (r *relativeResolver) LookupHost(ctx context.Context, host string) ([]strin
 }
 
 func (r *relativeResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
-	var names []string
-	if ndots := strings.Count(host, "."); ndots < r.ndots {
-		// If the name has fewer dots than the threshold, append the search
-		// domains to the name.
-		for _, domain := range r.search {
-			name := util.Join(host, domain)
-			if _, ok := dns.IsDomainName(name); ok {
-				names = append(names, name)
+	names := []string{dns.Fqdn(host)}
+
+	// Let localhost be localhost.
+	// See: https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-let-localhost-be-localhost
+	if dns.Fqdn(host) != "localhost." {
+		if ndots := strings.Count(host, "."); ndots < r.ndots {
+			// If the name has fewer dots than the threshold, append the search
+			// domains to the name.
+			names = nil
+			for _, domain := range r.search {
+				name := util.Join(host, domain)
+				if _, ok := dns.IsDomainName(name); ok {
+					names = append(names, name)
+				}
 			}
 		}
-	} else {
-		names = []string{dns.Fqdn(host)}
 	}
 
 	var firstErr error

@@ -25,6 +25,7 @@ func TestRelativeResolver(t *testing.T) {
 
 	inner := new(testutil.MockResolver)
 	inner.On("LookupNetIP", mock.Anything, "ip", "www.example.com.").Return([]netip.Addr{addr}, nil)
+	inner.On("LookupNetIP", mock.Anything, "ip", "localhost.").Return([]netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil)
 
 	res := resolver.Relative(inner, &resolver.RelativeResolverConfig{
 		Search: []string{"example.com."},
@@ -36,5 +37,12 @@ func TestRelativeResolver(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Equal(t, []string{"10.0.0.1"}, addrs)
+	})
+
+	t.Run("Lookup Localhost", func(t *testing.T) {
+		addrs, err := res.LookupHost(context.Background(), "localhost")
+		require.NoError(t, err)
+
+		require.Equal(t, []string{"127.0.0.1"}, addrs)
 	})
 }

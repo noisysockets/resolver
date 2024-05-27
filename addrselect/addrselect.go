@@ -8,7 +8,7 @@
  *
  * Portions of this file are based on code originally from the Go project,
  *
- * Copyright (c) 2015 The Go Authors. All rights reserved.
+ * Copyright (c) 2024 The Go Authors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are

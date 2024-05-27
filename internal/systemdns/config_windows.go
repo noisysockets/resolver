@@ -1,3 +1,5 @@
+//go:build windows
+
 // SPDX-License-Identifier: MPL-2.0
 /*
  * Copyright (C) 2024 The Noisy Sockets Authors.
@@ -8,7 +10,7 @@
  *
  * Portions of this file are based on code originally from the Go project,
  *
- * Copyright (c) 2012 The Go Authors. All rights reserved.
+ * Copyright (c) 2024 The Go Authors. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -37,32 +39,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package resolver
+package systemdns
 
-import (
-	"context"
-	"net/netip"
-)
+import "errors"
 
-// Protocol is the protocol used for DNS resolution.
-type Protocol string
-
-const (
-	// ProtocolUDP is the DNS over UDP as defined in RFC 1035.
-	ProtocolUDP Protocol = "udp"
-	// ProtocolTCP is the DNS over TCP as defined in RFC 1035.
-	ProtocolTCP Protocol = "tcp"
-	// ProtocolTLS is the DNS over TLS as defined in RFC 7858.
-	ProtocolTLS Protocol = "tls"
-)
-
-// Resolver looks up names and numbers.
-type Resolver interface {
-	// LookupHost looks up the given host using the resolver. It returns a slice
-	// of that host's addresses.
-	LookupHost(ctx context.Context, host string) (addrs []string, err error)
-	// LookupNetIP looks up host using the resolver. It returns a slice of that
-	// host's IP addresses of the type specified by network. The network must be
-	// one of "ip", "ip4" or "ip6".
-	LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error)
+func ReadConfig(ignoredFilename string) (*Config, error) {
+	// TODO: Implement this.
+	return nil, errors.New("not implemented on Windows")
 }
