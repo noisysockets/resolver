@@ -42,7 +42,6 @@
 package dnsconfig
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -59,19 +58,16 @@ func Read(ignoredFilename string) (*Config, error) {
 		Attempts: 2,
 	}
 
-	// Get the IPv4 interface addresses.
-	aasV4, err := winipcfg.GetAdaptersAddresses(windows.AF_INET, winipcfg.GAAFlagIncludeAllInterfaces)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get adapter addresses: %w", err)
+	// Get the interface addresses (prefer IPv6).
+	var aas []*winipcfg.IPAdapterAddresses
+	if aasV6, err := winipcfg.GetAdaptersAddresses(windows.AF_INET6, winipcfg.GAAFlagIncludeAll); err == nil {
+		aas = append(aas, aasV6...)
+	}
+	if aasV4, err := winipcfg.GetAdaptersAddresses(windows.AF_INET, winipcfg.GAAFlagIncludeAll); err == nil {
+		aas = append(aas, aasV4...)
 	}
 
-	// Get IPv6 interface addresses as well.
-	aasV6, err := winipcfg.GetAdaptersAddresses(windows.AF_INET6, winipcfg.GAAFlagIncludeAllInterfaces)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get adapter addresses: %w", err)
-	}
-
-	for _, aa := range append(aasV4, aasV6...) {
+	for _, aa := range aas {
 		// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
 		if aa.OperStatus != winipcfg.IfOperStatusUp {
 			continue
