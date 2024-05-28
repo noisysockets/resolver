@@ -89,5 +89,9 @@ func System(conf *SystemResolverConfig) (Resolver, error) {
 		})
 	}
 
+	// Make sure the system resolver can resolve IP addresses.
+	// So it can be used without the need to chain it with other resolvers.
+	resolver = Chain(IP(), resolver)
+
 	return resolver, nil
 }
