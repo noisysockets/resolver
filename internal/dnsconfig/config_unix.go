@@ -39,43 +39,52 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package systemdns
+package dnsconfig
 
 import (
+	"bufio"
 	"net"
 	"net/netip"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
-// ReadConfig reads the system DNS config from /etc/resolv.conf.
+// Read reads the system DNS config from /etc/resolv.conf.
 // See resolv.conf(5) on a Linux machine.
-func ReadConfig(filename string) (*Config, error) {
+func Read(filename string) (*Config, error) {
 	conf := &Config{
 		NDots:    1,
 		Timeout:  5 * time.Second,
 		Attempts: 2,
 	}
-	file, err := open(filename)
+
+	file, err := os.Open(filename)
 	if err != nil {
 		conf.Servers = defaultNS
 		conf.Search = dnsDefaultSearch()
 		return conf, err
 	}
-	defer file.close()
-	if fi, err := file.file.Stat(); err == nil {
+	defer file.Close()
+
+	if fi, err := file.Stat(); err == nil {
 		conf.MTime = fi.ModTime()
 	} else {
 		conf.Servers = defaultNS
 		conf.Search = dnsDefaultSearch()
 		return conf, err
 	}
-	for line, ok := file.readLine(); ok; line, ok = file.readLine() {
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
 		if len(line) > 0 && (line[0] == ';' || line[0] == '#') {
 			// comment.
 			continue
 		}
-		f := getFields(line)
+
+		f := strings.Fields(line)
 		if len(f) < 1 {
 			continue
 		}
@@ -109,7 +118,7 @@ func ReadConfig(filename string) (*Config, error) {
 			for _, s := range f[1:] {
 				switch {
 				case strings.HasPrefix(s, "ndots:"):
-					n, _, _ := dtoi(s[6:])
+					n, _ := strconv.Atoi(s[6:])
 					if n < 0 {
 						n = 0
 					} else if n > 15 {
@@ -117,13 +126,13 @@ func ReadConfig(filename string) (*Config, error) {
 					}
 					conf.NDots = n
 				case strings.HasPrefix(s, "timeout:"):
-					n, _, _ := dtoi(s[8:])
+					n, _ := strconv.Atoi(s[8:])
 					if n < 1 {
 						n = 1
 					}
 					conf.Timeout = time.Duration(n) * time.Second
 				case strings.HasPrefix(s, "attempts:"):
-					n, _, _ := dtoi(s[9:])
+					n, _ := strconv.Atoi(s[9:])
 					if n < 1 {
 						n = 1
 					}
@@ -167,9 +176,14 @@ func ReadConfig(filename string) (*Config, error) {
 			conf.UnknownOpt = true
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return conf, err
+	}
+
 	if len(conf.Servers) == 0 {
 		conf.Servers = defaultNS
 	}
+
 	if len(conf.Search) == 0 {
 		conf.Search = dnsDefaultSearch()
 	}

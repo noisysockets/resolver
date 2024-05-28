@@ -39,7 +39,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package systemdns
+package dnsconfig
 
 import (
 	"errors"
@@ -214,7 +214,7 @@ func TestDNSReadConfig(t *testing.T) {
 		if len(want.Search) == 0 {
 			want.Search = dnsDefaultSearch()
 		}
-		conf, err := ReadConfig(tt.name)
+		conf, err := Read(tt.name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -230,7 +230,7 @@ func TestDNSReadMissingFile(t *testing.T) {
 	defer func() { getHostname = origGetHostname }()
 	getHostname = func() (string, error) { return "host.domain.local", nil }
 
-	conf, err := ReadConfig("a-nonexistent-file")
+	conf, err := Read("a-nonexistent-file")
 	if !os.IsNotExist(err) {
 		t.Errorf("missing resolv.conf:\ngot: %v\nwant: %v", err, fs.ErrNotExist)
 	}

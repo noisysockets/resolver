@@ -39,11 +39,68 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package systemdns
+package dnsconfig
 
-import "errors"
+import (
+	"net"
+	"time"
 
-func ReadConfig(ignoredFilename string) (*Config, error) {
-	// TODO: Implement this.
-	return nil, errors.New("not implemented on Windows")
+	"golang.org/x/sys/windows"
+
+	"github.com/noisysockets/resolver/internal/winipcfg"
+)
+
+// Read reads the system DNS config from the Windows registry.
+func Read(ignoredFilename string) (*Config, error) {
+	conf := &Config{
+		NDots:    1,
+		Timeout:  5 * time.Second,
+		Attempts: 2,
+	}
+
+	// Get the interface addresses (prefer IPv6).
+	var aas []*winipcfg.IPAdapterAddresses
+	if aasV6, err := winipcfg.GetAdaptersAddresses(windows.AF_INET6, winipcfg.GAAFlagIncludeAll); err == nil {
+		aas = append(aas, aasV6...)
+	}
+	if aasV4, err := winipcfg.GetAdaptersAddresses(windows.AF_INET, winipcfg.GAAFlagIncludeAll); err == nil {
+		aas = append(aas, aasV4...)
+	}
+
+	for _, aa := range aas {
+		// Only take interfaces whose OperStatus is IfOperStatusUp(0x01) into DNS configs.
+		if aa.OperStatus != winipcfg.IfOperStatusUp {
+			continue
+		}
+
+		// Only take interfaces which have at least one gateway.
+		if aa.FirstGatewayAddress == nil {
+			continue
+		}
+
+		dnsAddrs, err := aa.LUID.DNS()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range dnsAddrs {
+			addr := addr.Unmap()
+			if addr.Is6() && addr.AsSlice()[0] == 0xfe && addr.AsSlice()[1] == 0xc0 {
+				// fec0/10 IPv6 addresses are site local anycast DNS
+				// addresses Microsoft sets by default if no other
+				// IPv6 DNS address is set. Site local anycast is
+				// deprecated since 2004, see
+				// https://datatracker.ietf.org/doc/html/rfc3879
+				continue
+			}
+
+			conf.Servers = append(conf.Servers, net.JoinHostPort(addr.String(), "53"))
+		}
+	}
+
+	if len(conf.Servers) == 0 {
+		conf.Servers = defaultNS
+	}
+
+	return conf, nil
 }
