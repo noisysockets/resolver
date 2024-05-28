@@ -17,7 +17,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/noisysockets/resolver/internal/systemdns"
+	"github.com/noisysockets/resolver/internal/dnsconfig"
 )
 
 // SystemResolverConfig is the configuration for a system resolver.
@@ -37,7 +37,7 @@ func System(conf *SystemResolverConfig) (Resolver, error) {
 		conf = &SystemResolverConfig{}
 	}
 
-	systemDNSConf, err := systemdns.ReadConfig("/etc/resolv.conf")
+	systemDNSConf, err := dnsconfig.Read("/etc/resolv.conf")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read system DNS configuration: %w", err)
 	}
