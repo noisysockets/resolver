@@ -5,9 +5,8 @@ go 1.22.0
 require (
 	dario.cat/mergo v1.0.0
 	github.com/avast/retry-go/v4 v4.6.0
-	github.com/kevinburke/hostsfile v0.0.0-20220522040509-e5e984885321
 	github.com/miekg/dns v1.1.59
-	github.com/noisysockets/netutil v0.2.0
+	github.com/noisysockets/netutil v0.3.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/sys v0.20.0
 )

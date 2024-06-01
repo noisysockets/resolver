@@ -16,9 +16,9 @@ import (
 	"net"
 	"net/netip"
 
-	hostsfile "github.com/kevinburke/hostsfile/lib"
 	"github.com/miekg/dns"
 	"github.com/noisysockets/netutil/addrselect"
+	"github.com/noisysockets/netutil/hostsfile"
 	"github.com/noisysockets/resolver/util"
 )
 
