@@ -8,6 +8,8 @@ github.com/kevinburke/hostsfile v0.0.0-20220522040509-e5e984885321 h1:zfI6ImDFFL
 github.com/kevinburke/hostsfile v0.0.0-20220522040509-e5e984885321/go.mod h1:jxc0FMWcuW3a+dQiKqEesZGT5abRU8gFVbdJaykah/g=
 github.com/miekg/dns v1.1.59 h1:C9EXc/UToRwKLhK5wKU/I4QVsBUc8kE6MkHBkeypWZs=
 github.com/miekg/dns v1.1.59/go.mod h1:nZpewl5p6IvctfgrckopVx2OlSEHPRO/U4SYkRklrEk=
+github.com/noisysockets/netutil v0.2.0 h1:YB3Ydb8B9bfpwXWhRtWPo7FkyRRF0agnRTvB3tAAyuo=
+github.com/noisysockets/netutil v0.2.0/go.mod h1:Xa+l8JJwudYbEFxt/DlMxGC7EGtYnq4+T0v3PSuj/0Q=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.5.2 h1:xuMeJ0Sdp5ZMRXx/aWO6RZxdr3beISkG5/G/aIRr3pY=

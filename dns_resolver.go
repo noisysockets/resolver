@@ -49,7 +49,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/noisysockets/resolver/addrselect"
+	"github.com/noisysockets/netutil/addrselect"
 	"github.com/noisysockets/resolver/util"
 )
 
