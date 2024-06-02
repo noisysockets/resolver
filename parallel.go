@@ -26,7 +26,7 @@ type parallelResolver struct {
 
 // Parallel returns a resolver that tries each resolver in parallel until one
 // succeeds.
-func Parallel(resolvers []Resolver) *parallelResolver {
+func Parallel(resolvers ...Resolver) *parallelResolver {
 	return &parallelResolver{
 		resolvers: resolvers,
 	}

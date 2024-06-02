@@ -23,7 +23,7 @@ type sequentialResolver struct {
 }
 
 // Sequential returns a resolver that tries each resolver in order until one succeeds.
-func Sequential(resolvers []Resolver) *sequentialResolver {
+func Sequential(resolvers ...Resolver) *sequentialResolver {
 	return &sequentialResolver{
 		resolvers: resolvers,
 	}

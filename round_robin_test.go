@@ -36,7 +36,7 @@ func TestRoundRobinResolver(t *testing.T) {
 		IsNotFound: true,
 	})
 
-	res := resolver.RoundRobin([]resolver.Resolver{res1, res2})
+	res := resolver.RoundRobin(res1, res2)
 
 	t.Run("Success", func(t *testing.T) {
 		addrs, err := res.LookupNetIP(context.Background(), "ip", "example.com")

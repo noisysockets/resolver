@@ -26,7 +26,7 @@ type roundRobinResolver struct {
 
 // RoundRobin returns a Resolver that load balances between multiple resolvers
 // using a round-robin strategy.
-func RoundRobin(resolvers []Resolver) *roundRobinResolver {
+func RoundRobin(resolvers ...Resolver) *roundRobinResolver {
 	return &roundRobinResolver{
 		resolvers: resolvers,
 	}
@@ -37,5 +37,5 @@ func (r *roundRobinResolver) LookupNetIP(ctx context.Context, network, host stri
 	copy(rotatedResolvers, r.resolvers)
 	rotatedResolvers = util.Shuffle(rotatedResolvers)
 
-	return Sequential(rotatedResolvers).LookupNetIP(ctx, network, host)
+	return Sequential(rotatedResolvers...).LookupNetIP(ctx, network, host)
 }

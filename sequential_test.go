@@ -36,7 +36,7 @@ func TestSequentialResolver(t *testing.T) {
 		IsNotFound: true,
 	})
 
-	res := resolver.Sequential([]resolver.Resolver{res1, res2})
+	res := resolver.Sequential(res1, res2)
 
 	t.Run("Success", func(t *testing.T) {
 		addrs, err := res.LookupNetIP(context.Background(), "ip", "example.com")

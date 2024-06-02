@@ -36,7 +36,7 @@ func TestParallelResolver(t *testing.T) {
 		IsNotFound: true,
 	})
 
-	res := resolver.Parallel([]resolver.Resolver{res1, res2})
+	res := resolver.Parallel(res1, res2)
 
 	t.Run("Success", func(t *testing.T) {
 		addrs, err := res.LookupNetIP(context.Background(), "ip", "example.com")

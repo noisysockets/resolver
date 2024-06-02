@@ -72,9 +72,9 @@ func System(conf *SystemResolverConfig) (Resolver, error) {
 
 	var resolver Resolver
 	if systemDNSConf.Rotate {
-		resolver = RoundRobin(resolvers)
+		resolver = RoundRobin(resolvers...)
 	} else {
-		resolver = Sequential(resolvers)
+		resolver = Sequential(resolvers...)
 	}
 
 	// TODO: I'm pretty sure that glibc counts attempts differently, eg. not on a
@@ -118,5 +118,5 @@ func System(conf *SystemResolverConfig) (Resolver, error) {
 		return nil, fmt.Errorf("failed to create hosts file resolver: %w", err)
 	}
 
-	return Sequential([]Resolver{Literal(), hostsResolver, resolver}), nil
+	return Sequential(Literal(), hostsResolver, resolver), nil
 }
