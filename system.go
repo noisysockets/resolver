@@ -61,7 +61,7 @@ func System(conf *SystemResolverConfig) (Resolver, error) {
 			timeout = &systemDNSConf.Timeout
 		}
 
-		resolvers = append(resolvers, DNS(&DNSResolverConfig{
+		resolvers = append(resolvers, DNS(DNSResolverConfig{
 			Server:        addrPort,
 			Transport:     &transport,
 			Timeout:       timeout,

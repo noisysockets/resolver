@@ -100,7 +100,7 @@ type dnsResolver struct {
 }
 
 // DNS creates a new DNS resolver.
-func DNS(conf *DNSResolverConfig) *dnsResolver {
+func DNS(conf DNSResolverConfig) *dnsResolver {
 	// Make sure the server port is set.
 	server := conf.Server
 	if server.Port() == 0 {
@@ -111,7 +111,7 @@ func DNS(conf *DNSResolverConfig) *dnsResolver {
 		}
 	}
 
-	conf, err := util.ConfigWithDefaults(conf, &DNSResolverConfig{
+	withDefaults, err := util.ConfigWithDefaults(&conf, &DNSResolverConfig{
 		Transport:   util.PointerTo(DNSTransportUDP),
 		Timeout:     util.PointerTo(5 * time.Second),
 		DialContext: (&net.Dialer{}).DialContext,
@@ -124,6 +124,7 @@ func DNS(conf *DNSResolverConfig) *dnsResolver {
 		// Should never happen.
 		panic(err)
 	}
+	conf = *withDefaults
 
 	return &dnsResolver{
 		server:        server,

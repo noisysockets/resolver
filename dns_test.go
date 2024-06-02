@@ -29,7 +29,7 @@ func TestDNSResolver(t *testing.T) {
 	}
 
 	t.Run("UDP", func(t *testing.T) {
-		res := resolver.DNS(&resolver.DNSResolverConfig{
+		res := resolver.DNS(resolver.DNSResolverConfig{
 			Server: netip.AddrPortFrom(netip.MustParseAddr("8.8.8.8"), 0),
 		})
 
@@ -40,7 +40,7 @@ func TestDNSResolver(t *testing.T) {
 	})
 
 	t.Run("TCP", func(t *testing.T) {
-		res := resolver.DNS(&resolver.DNSResolverConfig{
+		res := resolver.DNS(resolver.DNSResolverConfig{
 			Server:    netip.AddrPortFrom(netip.MustParseAddr("8.8.8.8"), 0),
 			Transport: util.PointerTo(resolver.DNSTransportTCP),
 		})
@@ -52,7 +52,7 @@ func TestDNSResolver(t *testing.T) {
 	})
 
 	t.Run("TLS", func(t *testing.T) {
-		res := resolver.DNS(&resolver.DNSResolverConfig{
+		res := resolver.DNS(resolver.DNSResolverConfig{
 			Server:    netip.AddrPortFrom(netip.MustParseAddr("8.8.8.8"), 0),
 			Transport: util.PointerTo(resolver.DNSTransportTLS),
 			TLSConfig: &tls.Config{
