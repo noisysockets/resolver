@@ -51,6 +51,9 @@ import (
 	"time"
 )
 
+// Location is the location of the system DNS configuration.
+const Location = "/etc/resolv.conf"
+
 // Read reads the system DNS config from /etc/resolv.conf.
 // See resolv.conf(5) on a Linux machine.
 func Read(filename string) (*Config, error) {

@@ -50,6 +50,10 @@ import (
 	"github.com/noisysockets/resolver/internal/winipcfg"
 )
 
+// Location is the location of the system DNS configuration.
+// This is ignored on Windows.
+const Location = ""
+
 // Read reads the system DNS config from the Windows registry.
 func Read(ignoredFilename string) (*Config, error) {
 	conf := &Config{

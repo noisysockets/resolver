@@ -54,7 +54,7 @@ type Config struct {
 	Servers       []string      // server addresses (in host:port form) to use
 	Search        []string      // rooted suffixes to append to local name
 	NDots         int           // number of dots in name to trigger absolute lookup
-	Timeout       time.Duration // wait before giving up on a query, including retries
+	Timeout       time.Duration // wait before giving up on a query.
 	Attempts      int           // lost packets before giving up on server
 	Rotate        bool          // round robin among servers
 	UnknownOpt    bool          // anything unknown was encountered

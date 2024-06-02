@@ -46,67 +46,93 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
 	"github.com/noisysockets/netutil/addrselect"
-	"github.com/noisysockets/resolver/util"
+	"github.com/noisysockets/resolver/internal/util"
+	"golang.org/x/sync/errgroup"
 )
 
-var (
-	_ Resolver = (*dnsResolver)(nil)
+var _ Resolver = (*dnsResolver)(nil)
+
+// DNSTransport is the transport protocol used for DNS resolution.
+type DNSTransport string
+
+const (
+	// DNSTransportUDP is DNS over UDP as defined in RFC 1035.
+	DNSTransportUDP DNSTransport = "udp"
+	// DNSTransportTCP is DNS over TCP as defined in RFC 1035.
+	DNSTransportTCP DNSTransport = "tcp"
+	// DNSTransportTLS is DNS over TLS as defined in RFC 7858.
+	DNSTransportTLS DNSTransport = "tcp-tls"
 )
 
 // DNSResolverConfig is the configuration for a DNS resolver.
 type DNSResolverConfig struct {
-	// Protocol is the protocol used for DNS resolution.
-	Protocol Protocol
 	// Server is the DNS server to query.
 	Server netip.AddrPort
+	// Transport is the optional transport protocol used for DNS resolution.
+	// By default, plain DNS over UDP is used.
+	Transport *DNSTransport
 	// Timeout is the maximum duration to wait for a query to complete.
 	Timeout *time.Duration
 	// DialContext is used to establish a connection to a DNS server.
-	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
-	// TLSClientConfig is the configuration for the TLS client used for DNS over TLS.
-	TLSClientConfig *tls.Config
+	DialContext DialContextFunc
+	// TLSConfig is the configuration for the TLS client used for DNS over TLS.
+	TLSConfig *tls.Config
+	// SingleRequest is used to query A and AAAA records sequentially.
+	// This is mostly useful for avoiding conntrack race issues with DNS over UDP.
+	// If you feel the need to enable this, you should probably just use
+	// DNS over TCP instead.
+	SingleRequest *bool
 }
 
-// dnsResolver is a DNS resolver written in pure Go.
+// dnsResolver is a DNS resolver.
 type dnsResolver struct {
-	protocol        Protocol
-	server          netip.AddrPort
-	timeout         *time.Duration
-	dialContext     func(ctx context.Context, network, address string) (net.Conn, error)
-	tlsClientConfig *tls.Config
+	server        netip.AddrPort
+	transport     DNSTransport
+	timeout       time.Duration
+	dialContext   DialContextFunc
+	tlsConfig     *tls.Config
+	singleRequest bool
 }
 
-// DNS returns a new DNS resolver.
+// DNS creates a new DNS resolver.
 func DNS(conf *DNSResolverConfig) *dnsResolver {
-	if conf == nil {
-		conf = &DNSResolverConfig{}
+	// Make sure the server port is set.
+	server := conf.Server
+	if server.Port() == 0 {
+		if conf.Transport != nil && *conf.Transport == DNSTransportTLS {
+			server = netip.AddrPortFrom(server.Addr(), 853)
+		} else {
+			server = netip.AddrPortFrom(server.Addr(), 53)
+		}
 	}
 
-	dialContext := (&net.Dialer{}).DialContext
-	if conf.DialContext != nil {
-		dialContext = conf.DialContext
+	conf, err := util.ConfigWithDefaults(conf, &DNSResolverConfig{
+		Transport:   util.PointerTo(DNSTransportUDP),
+		Timeout:     util.PointerTo(5 * time.Second),
+		DialContext: (&net.Dialer{}).DialContext,
+		TLSConfig: &tls.Config{
+			ServerName: server.String(),
+		},
+		SingleRequest: util.PointerTo(false),
+	})
+	if err != nil {
+		// Should never happen.
+		panic(err)
 	}
 
 	return &dnsResolver{
-		protocol:        conf.Protocol,
-		server:          conf.Server,
-		timeout:         conf.Timeout,
-		dialContext:     dialContext,
-		tlsClientConfig: conf.TLSClientConfig,
+		server:        server,
+		transport:     *conf.Transport,
+		timeout:       *conf.Timeout,
+		dialContext:   conf.DialContext,
+		tlsConfig:     conf.TLSConfig,
+		singleRequest: *conf.SingleRequest,
 	}
-}
-
-func (r *dnsResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
-	addrs, err := r.LookupNetIP(ctx, "ip", host)
-	if err != nil {
-		return nil, err
-	}
-
-	return util.Strings(addrs), nil
 }
 
 func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
@@ -122,25 +148,7 @@ func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 		})
 	}
 
-	client := &dns.Client{}
-
-	if r.timeout != nil {
-		client.Timeout = *r.timeout
-	}
-
-	switch r.protocol {
-	case ProtocolUDP:
-		client.Net = "udp"
-	case ProtocolTCP:
-		client.Net = "tcp"
-	case ProtocolTLS:
-		client.Net = "tcp-tls"
-		client.TLSConfig = r.tlsClientConfig
-	default:
-		return nil, extendDNSError(dnsErr, net.DNSError{
-			Err: ErrUnsupportedProtocol.Error(),
-		})
-	}
+	name := dns.Fqdn(host)
 
 	var qTypes []uint16
 	switch network {
@@ -156,13 +164,19 @@ func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 		})
 	}
 
-	name := dns.Fqdn(host)
+	client := &dns.Client{
+		Net:       string(r.transport),
+		TLSConfig: r.tlsConfig,
+		Timeout:   r.timeout,
+	}
 
+	var addrsMu sync.Mutex
 	var addrs []netip.Addr
-	for _, qType := range qTypes {
-		reply, err := r.tryOneName(ctx, client, r.server, name, qType)
+
+	tryOneNameAndAppendResults := func(ctx context.Context, qType uint16) error {
+		reply, err := r.tryOneName(ctx, client, name, qType)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		// We asked for recursion, so it should have included all the
@@ -177,6 +191,9 @@ func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 		// CNAMEs and that the A and AAAA records we requested are
 		// for the canonical name.
 
+		addrsMu.Lock()
+		defer addrsMu.Unlock()
+
 		for _, rr := range reply.Answer {
 			switch rr := rr.(type) {
 			case *dns.A:
@@ -185,14 +202,39 @@ func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 				addrs = append(addrs, netip.AddrFrom16([16]byte(rr.AAAA.To16())))
 			}
 		}
+
+		return nil
+	}
+
+	if r.singleRequest {
+		for _, qType := range qTypes {
+			if err := tryOneNameAndAppendResults(ctx, qType); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		g, ctx := errgroup.WithContext(ctx)
+
+		for _, qType := range qTypes {
+			qType := qType
+			g.Go(func() error {
+				return tryOneNameAndAppendResults(ctx, qType)
+			})
+		}
+
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
 	}
 
 	if len(addrs) > 0 {
-		dial := func(network, address string) (net.Conn, error) {
-			return r.dialContext(ctx, network, address)
-		}
+		if network != "ip4" {
+			dial := func(network, address string) (net.Conn, error) {
+				return r.dialContext(ctx, network, address)
+			}
 
-		addrselect.SortByRFC6724(dial, addrs)
+			addrselect.SortByRFC6724(dial, addrs)
+		}
 
 		return addrs, nil
 	}
@@ -203,11 +245,10 @@ func (r *dnsResolver) LookupNetIP(ctx context.Context, network, host string) ([]
 	})
 }
 
-func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client,
-	server netip.AddrPort, name string, qType uint16) (*dns.Msg, *net.DNSError) {
-
+func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client, name string, qType uint16) (*dns.Msg, *net.DNSError) {
 	dnsErr := &net.DNSError{
-		Name: name,
+		Name:   name,
+		Server: r.server.String(),
 	}
 
 	if client.Timeout != 0 {
@@ -216,16 +257,7 @@ func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client,
 		defer cancel()
 	}
 
-	if server.Port() == 0 {
-		if client.Net == "udp" || client.Net == "tcp" {
-			server = netip.AddrPortFrom(server.Addr(), 53)
-		} else if client.Net == "tcp-tls" {
-			server = netip.AddrPortFrom(server.Addr(), 853)
-		}
-	}
-	dnsErr.Server = server.String()
-
-	conn, err := r.dialContext(ctx, strings.TrimSuffix(client.Net, "-tls"), server.String())
+	conn, err := r.dialContext(ctx, strings.TrimSuffix(client.Net, "-tls"), r.server.String())
 	if err != nil {
 		return nil, extendDNSError(dnsErr, net.DNSError{
 			Err:         err.Error(),
@@ -235,13 +267,7 @@ func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client,
 	}
 
 	if strings.HasSuffix(client.Net, "-tls") {
-		tlsConfig := &tls.Config{}
-		if client.TLSConfig != nil {
-			tlsConfig = client.TLSConfig.Clone()
-		}
-		tlsConfig.ServerName = server.Addr().String()
-
-		conn = tls.Client(conn, tlsConfig)
+		conn = tls.Client(conn, r.tlsConfig)
 		if err := conn.(*tls.Conn).HandshakeContext(ctx); err != nil {
 			_ = conn.Close()
 			// Handshake errors are not likely to be temporary.
@@ -253,7 +279,7 @@ func (r *dnsResolver) tryOneName(ctx context.Context, client *dns.Client,
 	}
 	defer conn.Close()
 
-	req := new(dns.Msg)
+	req := &dns.Msg{}
 	req.SetQuestion(name, qType)
 
 	reply, _, err := client.ExchangeWithConn(req, &dns.Conn{Conn: conn})

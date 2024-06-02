@@ -41,26 +41,16 @@ package resolver
 
 import (
 	"context"
+	"net"
 	"net/netip"
 )
 
-// Protocol is the protocol used for DNS resolution.
-type Protocol string
+// DialContextFunc is a network dialer that can be used to dial a network.
+type DialContextFunc func(ctx context.Context, network, address string) (net.Conn, error)
 
-const (
-	// ProtocolUDP is the DNS over UDP as defined in RFC 1035.
-	ProtocolUDP Protocol = "udp"
-	// ProtocolTCP is the DNS over TCP as defined in RFC 1035.
-	ProtocolTCP Protocol = "tcp"
-	// ProtocolTLS is the DNS over TLS as defined in RFC 7858.
-	ProtocolTLS Protocol = "tls"
-)
-
-// Resolver looks up names and numbers.
+// Resolver looks up names and numbers, this interface is also implemented by
+// net.Resolver from the Go standard library.
 type Resolver interface {
-	// LookupHost looks up the given host using the resolver. It returns a slice
-	// of that host's addresses.
-	LookupHost(ctx context.Context, host string) (addrs []string, err error)
 	// LookupNetIP looks up host using the resolver. It returns a slice of that
 	// host's IP addresses of the type specified by network. The network must be
 	// one of "ip", "ip4" or "ip6".

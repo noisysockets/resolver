@@ -13,22 +13,12 @@ import (
 	"context"
 	"net/netip"
 
-	"github.com/noisysockets/resolver"
 	"github.com/stretchr/testify/mock"
-)
-
-var (
-	_ resolver.Resolver = (*MockResolver)(nil)
 )
 
 // MockResolver is a mock implementation of Resolver.
 type MockResolver struct {
 	mock.Mock
-}
-
-func (m *MockResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
-	args := m.Called(ctx, host)
-	return args.Get(0).([]string), args.Error(1)
 }
 
 func (m *MockResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {

@@ -14,44 +14,43 @@ import (
 	"net/netip"
 
 	"github.com/avast/retry-go/v4"
+	"github.com/noisysockets/resolver/internal/util"
 )
 
-var (
-	_ Resolver = (*retryResolver)(nil)
-)
+var _ Resolver = (*retryResolver)(nil)
 
 // RetryResolverConfig is the configuration for a retry resolver.
 type RetryResolverConfig struct {
 	// Attempts is the number of attempts to make before giving up.
-	// Setting this to 0 will cause the resolver to retry forever.
-	Attempts int
+	// Setting this to 0 will cause the resolver to retry indefinitely.
+	Attempts *int
 }
 
+// retryResolver is a resolver that retries a resolver a number of times.
 type retryResolver struct {
-	inner    Resolver
+	resolver Resolver
 	attempts int
 }
 
-// Retry creates a new resolver that retries the inner resolver a configurable
-// number of times (for temporary errors).
-func Retry(inner Resolver, conf *RetryResolverConfig) Resolver {
-	return &retryResolver{inner: inner, attempts: conf.Attempts}
-}
+// Retry returns a resolver that retries a resolver a number of times.
+func Retry(resolver Resolver, conf *RetryResolverConfig) *retryResolver {
+	conf, err := util.ConfigWithDefaults(conf, &RetryResolverConfig{
+		Attempts: util.PointerTo(2), // glibc defaults to 2 attempts.
+	})
+	if err != nil {
+		// Should never happen.
+		panic(err)
+	}
 
-func (r *retryResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
-	return retry.DoWithData(func() ([]string, error) {
-		return r.inner.LookupHost(ctx, host)
-	},
-		retry.Context(ctx),
-		retry.Attempts(uint(r.attempts)),
-		retry.RetryIf(isTemporary),
-		retry.LastErrorOnly(true),
-	)
+	return &retryResolver{
+		resolver: resolver,
+		attempts: *conf.Attempts,
+	}
 }
 
 func (r *retryResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
 	return retry.DoWithData(func() ([]netip.Addr, error) {
-		return r.inner.LookupNetIP(ctx, network, host)
+		return r.resolver.LookupNetIP(ctx, network, host)
 	},
 		retry.Context(ctx),
 		retry.Attempts(uint(r.attempts)),

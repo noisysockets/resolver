@@ -15,45 +15,55 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"os"
 
 	"github.com/miekg/dns"
+	"github.com/noisysockets/netutil/addresses"
 	"github.com/noisysockets/netutil/addrselect"
 	"github.com/noisysockets/netutil/hostsfile"
-	"github.com/noisysockets/resolver/util"
+	"github.com/noisysockets/resolver/internal/util"
 )
 
-var (
-	_ Resolver = (*fileResolver)(nil)
-)
+var _ Resolver = (*hostsResolver)(nil)
 
-// FileResolverConfig is the configuration for a hosts file resolver.
-type FileResolverConfig struct {
-	// DialContext is an optional function for creating network connections.
-	// It is used for ordering the returned addresses.
-	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
+type HostsResolverConfig struct {
+	// HostsFileReader is an optional reader that will be used as the source of the hosts file.
+	// If not provided, the OS's default hosts file will be used.
+	HostsFileReader io.Reader
+	// DialContext is an optional dialer used for ordering the returned addresses.
+	DialContext DialContextFunc
 }
 
-// fileResolver is a resolver that looks up names and numbers from a hosts file.
-type fileResolver struct {
+type hostsResolver struct {
 	addrsByName map[string][]netip.Addr
-	namesByAddr map[netip.Addr][]string
-	dialContext func(ctx context.Context, network, address string) (net.Conn, error)
+	dialContext DialContextFunc
 }
 
-// File creates a new hosts file resolver from the given reader.
-func File(hostsfileReader io.Reader, conf *FileResolverConfig) (*fileResolver, error) {
-	if conf == nil {
-		conf = &FileResolverConfig{}
+func Hosts(conf *HostsResolverConfig) (*hostsResolver, error) {
+	conf, err := util.ConfigWithDefaults(conf, &HostsResolverConfig{
+		DialContext: (&net.Dialer{}).DialContext,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply defaults to hosts resolver config: %w", err)
 	}
 
-	h, err := hostsfile.Decode(hostsfileReader)
+	// Don't incur the cost of opening the hosts file if a reader is already provided.
+	if conf.HostsFileReader == nil {
+		f, err := os.Open(hostsfile.Location)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open hosts file: %w", err)
+		}
+		defer f.Close()
+
+		conf.HostsFileReader = f
+	}
+
+	h, err := hostsfile.Decode(conf.HostsFileReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse hosts file: %w", err)
 	}
 
 	addrsByName := make(map[string][]netip.Addr)
-	namesByAddr := make(map[netip.Addr][]string)
-
 	for _, record := range h.Records() {
 		for name := range record.Hostnames {
 			name = dns.Fqdn(name)
@@ -64,32 +74,21 @@ func File(hostsfileReader io.Reader, conf *FileResolverConfig) (*fileResolver, e
 			}
 
 			addrsByName[name] = append(addrsByName[name], addr)
-			namesByAddr[addr] = append(namesByAddr[addr], name)
 		}
 	}
 
-	return &fileResolver{
+	return &hostsResolver{
 		addrsByName: addrsByName,
-		namesByAddr: namesByAddr,
 		dialContext: conf.DialContext,
 	}, nil
 }
 
-func (r *fileResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
-	addrs, err := r.LookupNetIP(ctx, "ip", host)
-	if err != nil {
-		return nil, err
-	}
-
-	return util.Strings(addrs), nil
-}
-
-func (r *fileResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
+func (r *hostsResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
 	dnsErr := &net.DNSError{
 		Name: host,
 	}
 
-	allAddrs, ok := r.addrsByName[dns.Fqdn(host)]
+	addrs, ok := r.addrsByName[dns.Fqdn(host)]
 	if !ok {
 		return nil, extendDNSError(dnsErr, net.DNSError{
 			Err:        ErrNoSuchHost.Error(),
@@ -103,14 +102,9 @@ func (r *fileResolver) LookupNetIP(ctx context.Context, network, host string) ([
 		})
 	}
 
-	addrs, err := util.FilterAddresses(allAddrs, network)
-	if err != nil {
-		return nil, extendDNSError(dnsErr, net.DNSError{
-			Err: err.Error(),
-		})
-	}
+	addrs = addresses.FilterByNetwork(addrs, network)
 
-	if r.dialContext != nil {
+	if network != "ip4" && len(addrs) > 0 {
 		dial := func(network, address string) (net.Conn, error) {
 			return r.dialContext(ctx, network, address)
 		}
