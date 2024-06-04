@@ -14,7 +14,7 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/noisysockets/netutil/addrselect"
+	"github.com/noisysockets/resolver/internal/addrselect"
 	"github.com/noisysockets/resolver/internal/util"
 )
 

@@ -19,8 +19,8 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/noisysockets/netutil/addresses"
-	"github.com/noisysockets/netutil/addrselect"
 	"github.com/noisysockets/netutil/hostsfile"
+	"github.com/noisysockets/resolver/internal/addrselect"
 	"github.com/noisysockets/resolver/internal/util"
 )
 
