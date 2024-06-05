@@ -15,8 +15,8 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver"
-	"github.com/noisysockets/resolver/internal/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,7 +42,7 @@ func TestDNSResolver(t *testing.T) {
 	t.Run("TCP", func(t *testing.T) {
 		res := resolver.DNS(resolver.DNSResolverConfig{
 			Server:    netip.AddrPortFrom(netip.MustParseAddr("8.8.8.8"), 0),
-			Transport: util.PointerTo(resolver.DNSTransportTCP),
+			Transport: ptr.To(resolver.DNSTransportTCP),
 		})
 
 		addrs, err := res.LookupNetIP(context.Background(), "ip", "dns.google")
@@ -54,7 +54,7 @@ func TestDNSResolver(t *testing.T) {
 	t.Run("TLS", func(t *testing.T) {
 		res := resolver.DNS(resolver.DNSResolverConfig{
 			Server:    netip.AddrPortFrom(netip.MustParseAddr("8.8.8.8"), 0),
-			Transport: util.PointerTo(resolver.DNSTransportTLS),
+			Transport: ptr.To(resolver.DNSTransportTLS),
 			TLSConfig: &tls.Config{
 				ServerName: "dns.google",
 			},

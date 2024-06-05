@@ -50,8 +50,9 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"github.com/noisysockets/netutil/defaults"
+	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/addrselect"
-	"github.com/noisysockets/resolver/internal/util"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -111,14 +112,14 @@ func DNS(conf DNSResolverConfig) *dnsResolver {
 		}
 	}
 
-	withDefaults, err := util.ConfigWithDefaults(&conf, &DNSResolverConfig{
-		Transport:   util.PointerTo(DNSTransportUDP),
-		Timeout:     util.PointerTo(5 * time.Second),
+	withDefaults, err := defaults.WithDefaults(&conf, &DNSResolverConfig{
+		Transport:   ptr.To(DNSTransportUDP),
+		Timeout:     ptr.To(5 * time.Second),
 		DialContext: (&net.Dialer{}).DialContext,
 		TLSConfig: &tls.Config{
 			ServerName: server.String(),
 		},
-		SingleRequest: util.PointerTo(false),
+		SingleRequest: ptr.To(false),
 	})
 	if err != nil {
 		// Should never happen.

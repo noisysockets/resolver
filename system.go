@@ -17,8 +17,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/noisysockets/netutil/defaults"
+	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/dnsconfig"
-	"github.com/noisysockets/resolver/internal/util"
 )
 
 // SystemResolverConfig is the configuration for a system resolver.
@@ -32,7 +33,7 @@ type SystemResolverConfig struct {
 
 // System returns a Resolver that uses the system's default DNS configuration.
 func System(conf *SystemResolverConfig) (Resolver, error) {
-	conf, err := util.ConfigWithDefaults(conf, &SystemResolverConfig{
+	conf, err := defaults.WithDefaults(conf, &SystemResolverConfig{
 		DialContext: (&net.Dialer{}).DialContext,
 	})
 	if err != nil {
@@ -91,7 +92,7 @@ func System(conf *SystemResolverConfig) (Resolver, error) {
 	if len(systemDNSConf.Search) > 0 {
 		var nDots *int
 		if systemDNSConf.NDots >= 0 {
-			nDots = util.PointerTo(systemDNSConf.NDots)
+			nDots = ptr.To(systemDNSConf.NDots)
 		}
 
 		resolver = Relative(resolver, &RelativeResolverConfig{

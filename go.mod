@@ -5,9 +5,8 @@ go 1.22.0
 require (
 	dario.cat/mergo v1.0.0
 	github.com/avast/retry-go/v4 v4.6.0
-	github.com/jinzhu/copier v0.4.0
 	github.com/miekg/dns v1.1.59
-	github.com/noisysockets/netutil v0.4.0
+	github.com/noisysockets/netutil v0.7.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/sync v0.7.0
 	golang.org/x/sys v0.20.0
@@ -15,6 +14,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	golang.org/x/mod v0.17.0 // indirect

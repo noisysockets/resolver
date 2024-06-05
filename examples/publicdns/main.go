@@ -11,8 +11,8 @@ import (
 	"net/netip"
 	"os"
 
+	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver"
-	"github.com/noisysockets/resolver/examples/internal/util"
 )
 
 func main() {
@@ -25,12 +25,12 @@ func main() {
 	res := resolver.Sequential(resolver.Literal(), resolver.RoundRobin(
 		resolver.DNS(resolver.DNSResolverConfig{
 			Server:    netip.MustParseAddrPort("8.8.8.8:853"),
-			Transport: util.PointerTo(resolver.DNSTransportTLS),
+			Transport: ptr.To(resolver.DNSTransportTLS),
 			TLSConfig: &tlsConfig,
 		}),
 		resolver.DNS(resolver.DNSResolverConfig{
 			Server:    netip.MustParseAddrPort("8.8.4.4:853"),
-			Transport: util.PointerTo(resolver.DNSTransportTLS),
+			Transport: ptr.To(resolver.DNSTransportTLS),
 			TLSConfig: &tlsConfig,
 		}),
 	))

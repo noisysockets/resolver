@@ -14,8 +14,9 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/noisysockets/netutil/defaults"
+	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/addrselect"
-	"github.com/noisysockets/resolver/internal/util"
 )
 
 var _ Resolver = (*dns64Resolver)(nil)
@@ -40,8 +41,8 @@ type dns64Resolver struct {
 // DNS64 returns a resolver that synthesizes IPv6 addresses from IPv4 addresses
 // using DNS64 (RFC 6147).
 func DNS64(resolver Resolver, conf *DNS64ResolverConfig) *dns64Resolver {
-	conf, err := util.ConfigWithDefaults(conf, &DNS64ResolverConfig{
-		Prefix:      util.PointerTo(netip.MustParsePrefix("64:ff9b::/96")),
+	conf, err := defaults.WithDefaults(conf, &DNS64ResolverConfig{
+		Prefix:      ptr.To(netip.MustParsePrefix("64:ff9b::/96")),
 		DialContext: (&net.Dialer{}).DialContext,
 	})
 	if err != nil {

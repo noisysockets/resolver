@@ -19,9 +19,9 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/noisysockets/netutil/addresses"
+	"github.com/noisysockets/netutil/defaults"
 	"github.com/noisysockets/netutil/hostsfile"
 	"github.com/noisysockets/resolver/internal/addrselect"
-	"github.com/noisysockets/resolver/internal/util"
 )
 
 var _ Resolver = (*hostsResolver)(nil)
@@ -40,7 +40,7 @@ type hostsResolver struct {
 }
 
 func Hosts(conf *HostsResolverConfig) (*hostsResolver, error) {
-	conf, err := util.ConfigWithDefaults(conf, &HostsResolverConfig{
+	conf, err := defaults.WithDefaults(conf, &HostsResolverConfig{
 		DialContext: (&net.Dialer{}).DialContext,
 	})
 	if err != nil {

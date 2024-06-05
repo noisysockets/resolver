@@ -16,6 +16,8 @@ import (
 	"strings"
 
 	"github.com/miekg/dns"
+	"github.com/noisysockets/netutil/defaults"
+	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/util"
 )
 
@@ -37,9 +39,9 @@ type relativeResolver struct {
 
 // Relative returns a resolver that resolves relative hostnames.
 func Relative(resolver Resolver, conf *RelativeResolverConfig) *relativeResolver {
-	conf, err := util.ConfigWithDefaults(conf, &RelativeResolverConfig{
+	conf, err := defaults.WithDefaults(conf, &RelativeResolverConfig{
 		Search: []string{"."},
-		NDots:  util.PointerTo(1),
+		NDots:  ptr.To(1),
 	})
 	if err != nil {
 		// Should never happen.

@@ -14,7 +14,8 @@ import (
 	"net/netip"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/noisysockets/resolver/internal/util"
+	"github.com/noisysockets/netutil/defaults"
+	"github.com/noisysockets/netutil/ptr"
 )
 
 var _ Resolver = (*retryResolver)(nil)
@@ -34,8 +35,8 @@ type retryResolver struct {
 
 // Retry returns a resolver that retries a resolver a number of times.
 func Retry(resolver Resolver, conf *RetryResolverConfig) *retryResolver {
-	conf, err := util.ConfigWithDefaults(conf, &RetryResolverConfig{
-		Attempts: util.PointerTo(2), // glibc defaults to 2 attempts.
+	conf, err := defaults.WithDefaults(conf, &RetryResolverConfig{
+		Attempts: ptr.To(2), // glibc defaults to 2 attempts.
 	})
 	if err != nil {
 		// Should never happen.

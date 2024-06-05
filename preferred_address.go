@@ -14,8 +14,8 @@ import (
 	"net"
 	"net/netip"
 
+	"github.com/noisysockets/netutil/defaults"
 	"github.com/noisysockets/resolver/internal/addrselect"
-	"github.com/noisysockets/resolver/internal/util"
 )
 
 var _ Resolver = (*preferredAddressResolver)(nil)
@@ -33,7 +33,7 @@ type preferredAddressResolver struct {
 
 // PreferredAddress returns a resolver that orders the returned addresses according to RFC 6724.
 func PreferredAddress(resolver Resolver, conf *PreferredAddressResolverConfig) *preferredAddressResolver {
-	conf, err := util.ConfigWithDefaults(conf, &PreferredAddressResolverConfig{
+	conf, err := defaults.WithDefaults(conf, &PreferredAddressResolverConfig{
 		DialContext: (&net.Dialer{}).DialContext,
 	})
 	if err != nil {
