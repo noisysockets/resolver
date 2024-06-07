@@ -40,4 +40,18 @@ func TestHostsResolver(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, []netip.Addr{netip.MustParseAddr("192.168.1.11")}, addrs)
+
+	// Add an ephemeral host
+	res.AddHost("api2.testserver.local", netip.MustParseAddr("192.168.2.11"))
+
+	addrs, err = res.LookupNetIP(context.Background(), "ip", "api2.testserver.local")
+	require.NoError(t, err)
+
+	require.Equal(t, []netip.Addr{netip.MustParseAddr("192.168.2.11")}, addrs)
+
+	// Remove the ephemeral host
+	res.RemoveHost("api2.testserver.local")
+
+	_, err = res.LookupNetIP(context.Background(), "ip", "api2.testserver.local")
+	require.Error(t, err)
 }

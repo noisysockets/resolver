@@ -16,15 +16,17 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sync"
 
 	"github.com/miekg/dns"
 	"github.com/noisysockets/netutil/addresses"
 	"github.com/noisysockets/netutil/defaults"
 	"github.com/noisysockets/netutil/hostsfile"
+	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/addrselect"
 )
 
-var _ Resolver = (*hostsResolver)(nil)
+var _ Resolver = (*HostsResolver)(nil)
 
 type HostsResolverConfig struct {
 	// HostsFileReader is an optional reader that will be used as the source of the hosts file.
@@ -32,63 +34,72 @@ type HostsResolverConfig struct {
 	HostsFileReader io.Reader
 	// DialContext is an optional dialer used for ordering the returned addresses.
 	DialContext DialContextFunc
+	// NoHostsFile disables the use of the hosts file.
+	// This is useful when operating with only ephemeral hosts.
+	NoHostsFile *bool
 }
 
-type hostsResolver struct {
-	addrsByName map[string][]netip.Addr
+type HostsResolver struct {
+	mu          sync.RWMutex
+	nameToAddr  map[string][]netip.Addr
 	dialContext DialContextFunc
 }
 
-func Hosts(conf *HostsResolverConfig) (*hostsResolver, error) {
+func Hosts(conf *HostsResolverConfig) (*HostsResolver, error) {
 	conf, err := defaults.WithDefaults(conf, &HostsResolverConfig{
 		DialContext: (&net.Dialer{}).DialContext,
+		NoHostsFile: ptr.To(false),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply defaults to hosts resolver config: %w", err)
 	}
 
-	// Don't incur the cost of opening the hosts file if a reader is already provided.
-	if conf.HostsFileReader == nil {
-		f, err := os.Open(hostsfile.Location)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open hosts file: %w", err)
-		}
-		defer f.Close()
-
-		conf.HostsFileReader = f
-	}
-
-	h, err := hostsfile.Decode(conf.HostsFileReader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse hosts file: %w", err)
-	}
-
 	addrsByName := make(map[string][]netip.Addr)
-	for _, record := range h.Records() {
-		for name := range record.Hostnames {
-			name = dns.Fqdn(name)
-
-			addr, err := netip.ParseAddr(record.IpAddress.String())
+	if !*conf.NoHostsFile {
+		// Don't incur the cost of opening the hosts file if a reader is already provided.
+		if conf.HostsFileReader == nil {
+			f, err := os.Open(hostsfile.Location)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse IP address: %w", err)
+				return nil, fmt.Errorf("failed to open hosts file: %w", err)
 			}
+			defer f.Close()
 
-			addrsByName[name] = append(addrsByName[name], addr)
+			conf.HostsFileReader = f
+		}
+
+		h, err := hostsfile.Decode(conf.HostsFileReader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse hosts file: %w", err)
+		}
+
+		for _, record := range h.Records() {
+			for name := range record.Hostnames {
+				name = dns.Fqdn(name)
+
+				addr, err := netip.ParseAddr(record.IpAddress.String())
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse IP address: %w", err)
+				}
+
+				addrsByName[name] = append(addrsByName[name], addr)
+			}
 		}
 	}
 
-	return &hostsResolver{
-		addrsByName: addrsByName,
+	return &HostsResolver{
+		nameToAddr:  addrsByName,
 		dialContext: conf.DialContext,
 	}, nil
 }
 
-func (r *hostsResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
+func (r *HostsResolver) LookupNetIP(ctx context.Context, network, host string) ([]netip.Addr, error) {
 	dnsErr := &net.DNSError{
 		Name: host,
 	}
 
-	addrs, ok := r.addrsByName[dns.Fqdn(host)]
+	r.mu.RLock()
+	addrs, ok := r.nameToAddr[dns.Fqdn(host)]
+	r.mu.RUnlock()
 	if !ok {
 		return nil, extendDNSError(dnsErr, net.DNSError{
 			Err:        ErrNoSuchHost.Error(),
@@ -113,4 +124,18 @@ func (r *hostsResolver) LookupNetIP(ctx context.Context, network, host string) (
 	}
 
 	return addrs, nil
+}
+
+// AddHost adds an ephemeral host to the resolver with the given addresses.
+func (r *HostsResolver) AddHost(host string, addrs ...netip.Addr) {
+	r.mu.Lock()
+	r.nameToAddr[dns.Fqdn(host)] = addrs
+	r.mu.Unlock()
+}
+
+// RemoveHost removes an ephemeral host from the resolver.
+func (r *HostsResolver) RemoveHost(host string) {
+	r.mu.Lock()
+	delete(r.nameToAddr, dns.Fqdn(host))
+	r.mu.Unlock()
 }
