@@ -18,7 +18,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/noisysockets/netutil/defaults"
 	"github.com/noisysockets/netutil/ptr"
-	"github.com/noisysockets/resolver/internal/util"
+	"github.com/noisysockets/resolver/util"
 )
 
 var _ Resolver = (*relativeResolver)(nil)
