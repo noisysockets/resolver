@@ -21,9 +21,9 @@ import (
 	"github.com/miekg/dns"
 	"github.com/noisysockets/netutil/addresses"
 	"github.com/noisysockets/netutil/defaults"
-	"github.com/noisysockets/netutil/hostsfile"
 	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/addrselect"
+	"github.com/noisysockets/resolver/internal/hostsfile"
 )
 
 var _ Resolver = (*HostsResolver)(nil)
