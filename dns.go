@@ -50,9 +50,9 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/noisysockets/netutil/defaults"
-	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/addrselect"
+	"github.com/noisysockets/util/defaults"
+	"github.com/noisysockets/util/ptr"
 	"golang.org/x/sync/errgroup"
 )
 

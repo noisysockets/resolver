@@ -5,7 +5,7 @@ go 1.22.0
 replace github.com/noisysockets/resolver => ../
 
 require (
-	github.com/noisysockets/netutil v0.7.0
+	github.com/noisysockets/util v0.7.0
 	github.com/noisysockets/resolver v0.0.0-00010101000000-000000000000
 )
 

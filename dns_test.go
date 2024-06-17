@@ -15,8 +15,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver"
+	"github.com/noisysockets/util/ptr"
 	"github.com/stretchr/testify/require"
 )
 

@@ -14,8 +14,8 @@ import (
 	"net/netip"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/noisysockets/netutil/defaults"
-	"github.com/noisysockets/netutil/ptr"
+	"github.com/noisysockets/util/defaults"
+	"github.com/noisysockets/util/ptr"
 )
 
 var _ Resolver = (*retryResolver)(nil)

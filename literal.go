@@ -15,7 +15,7 @@ import (
 	"net/netip"
 
 	"github.com/miekg/dns"
-	"github.com/noisysockets/netutil/addresses"
+	"github.com/noisysockets/util/address"
 )
 
 var _ Resolver = (*literalResolver)(nil)
@@ -52,7 +52,7 @@ func (r *literalResolver) LookupNetIP(ctx context.Context, network, host string)
 		}
 	}
 
-	addrs = addresses.FilterByNetwork(addrs, network)
+	addrs = address.FilterByNetwork(addrs, network)
 	if len(addrs) == 0 {
 		return nil, &net.DNSError{
 			Err:        ErrNoSuchHost.Error(),

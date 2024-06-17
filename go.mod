@@ -1,12 +1,12 @@
 module github.com/noisysockets/resolver
 
-go 1.22.0
+go 1.22.4
 
 require (
 	dario.cat/mergo v1.0.0
 	github.com/avast/retry-go/v4 v4.6.0
 	github.com/miekg/dns v1.1.61
-	github.com/noisysockets/netutil v0.7.0
+	github.com/noisysockets/util v0.1.0
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/sync v0.7.0
 	golang.org/x/sys v0.21.0

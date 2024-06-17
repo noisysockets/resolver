@@ -14,9 +14,9 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/noisysockets/netutil/defaults"
-	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/addrselect"
+	"github.com/noisysockets/util/defaults"
+	"github.com/noisysockets/util/ptr"
 )
 
 var _ Resolver = (*dns64Resolver)(nil)

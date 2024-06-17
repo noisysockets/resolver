@@ -19,11 +19,11 @@ import (
 	"sync"
 
 	"github.com/miekg/dns"
-	"github.com/noisysockets/netutil/addresses"
-	"github.com/noisysockets/netutil/defaults"
-	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/addrselect"
 	"github.com/noisysockets/resolver/internal/hostsfile"
+	"github.com/noisysockets/util/address"
+	"github.com/noisysockets/util/defaults"
+	"github.com/noisysockets/util/ptr"
 )
 
 var _ Resolver = (*HostsResolver)(nil)
@@ -113,7 +113,7 @@ func (r *HostsResolver) LookupNetIP(ctx context.Context, network, host string) (
 		})
 	}
 
-	addrs = addresses.FilterByNetwork(addrs, network)
+	addrs = address.FilterByNetwork(addrs, network)
 
 	if network != "ip4" && len(addrs) > 0 {
 		dial := func(network, address string) (net.Conn, error) {

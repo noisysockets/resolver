@@ -17,9 +17,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/noisysockets/netutil/defaults"
-	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver/internal/dnsconfig"
+	"github.com/noisysockets/util/defaults"
+	"github.com/noisysockets/util/ptr"
 )
 
 // SystemResolverConfig is the configuration for a system resolver.

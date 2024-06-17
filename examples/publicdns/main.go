@@ -11,8 +11,8 @@ import (
 	"net/netip"
 	"os"
 
-	"github.com/noisysockets/netutil/ptr"
 	"github.com/noisysockets/resolver"
+	"github.com/noisysockets/util/ptr"
 )
 
 func main() {
