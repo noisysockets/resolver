@@ -1,12 +1,12 @@
 module github.com/noisysockets/resolver/examples
 
-go 1.22.0
+go 1.22.4
 
 replace github.com/noisysockets/resolver => ../
 
 require (
-	github.com/noisysockets/util v0.7.0
 	github.com/noisysockets/resolver v0.0.0-00010101000000-000000000000
+	github.com/noisysockets/util v0.1.0
 )
 
 require (
