@@ -35,9 +35,9 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sort"
 	"strings"
-	"sync"
+
+	"github.com/miekg/dns"
 )
 
 // Represents a hosts file. Records match a single line in the file.
@@ -53,81 +53,18 @@ func (h *Hostsfile) Records() []*Record {
 // A single line in the hosts file
 type Record struct {
 	IpAddress net.IPAddr
-	Hostnames map[string]bool
+	Hostnames []string
 	comment   string
 	isBlank   bool
-	mu        sync.Mutex
 }
 
-// returns true if a and b are not both ipv4 addresses
-func matchProtocols(a, b net.IP) bool {
-	ato4 := a.To4()
-	bto4 := b.To4()
-	return (ato4 == nil && bto4 == nil) ||
-		(ato4 != nil && bto4 != nil)
-}
-
-// Adds a record to the list. If the hostname is present with a different IP
-// address, it will be reassigned. If the record is already present with the
-// same hostname/IP address data, it will not be added again.
-func (h *Hostsfile) Set(ipa net.IPAddr, hostname string) error {
-	addKey := true
-	for i := 0; i < len(h.records); i++ {
-		record := h.records[i]
-		record.mu.Lock()
-		_, ok := record.Hostnames[hostname]
-		if ok {
-			if record.IpAddress.IP.Equal(ipa.IP) {
-				// tried to set a key that exists with the same IP address,
-				// nothing to do
-				addKey = false
-			} else {
-				// if the protocol matches, delete the key and be sure to add
-				// a new record.
-				if matchProtocols(record.IpAddress.IP, ipa.IP) {
-					delete(record.Hostnames, hostname)
-					if len(record.Hostnames) == 0 {
-						// delete the record
-						h.records = append(h.records[:i], h.records[i+1:]...)
-					}
-					addKey = true
-				}
-			}
+func (r *Record) Matches(hostname string) bool {
+	for _, hn := range r.Hostnames {
+		if hn == dns.CanonicalName(hostname) {
+			return true
 		}
-		record.mu.Unlock()
 	}
-
-	if addKey {
-		nr := &Record{
-			IpAddress: ipa,
-			Hostnames: map[string]bool{hostname: true},
-		}
-		h.records = append(h.records, nr)
-	}
-	return nil
-}
-
-// Removes all references to hostname from the file. Returns false if the
-// record was not found in the file.
-func (h *Hostsfile) Remove(hostname string) (found bool) {
-	for i := len(h.records) - 1; i >= 0; i-- {
-		record := h.records[i]
-		record.mu.Lock()
-		if _, ok := record.Hostnames[hostname]; ok {
-			delete(record.Hostnames, hostname)
-			if len(record.Hostnames) == 0 {
-				// delete the record
-				if i == len(h.records)-1 {
-					h.records = h.records[:len(h.records)-1]
-				} else {
-					h.records = append(h.records[:i], h.records[i+1:]...)
-				}
-			}
-			found = true
-		}
-		record.mu.Unlock()
-	}
-	return
+	return false
 }
 
 // Decodes the raw text of a hostsfile into a Hostsfile struct. If a line
@@ -157,7 +94,6 @@ func Decode(rdr io.Reader) (Hostsfile, error) {
 			}
 			r = &Record{
 				IpAddress: *ip,
-				Hostnames: map[string]bool{},
 			}
 			for i := 1; i < len(vals); i++ {
 				name := vals[i]
@@ -165,7 +101,9 @@ func Decode(rdr io.Reader) (Hostsfile, error) {
 					// beginning of a comment. rest of the line is bunk
 					break
 				}
-				r.Hostnames[name] = true
+				if _, ok := dns.IsDomainName(name); ok {
+					r.Hostnames = append(r.Hostnames, dns.CanonicalName(name))
+				}
 			}
 		}
 		h.records = append(h.records, r)
@@ -174,32 +112,4 @@ func Decode(rdr io.Reader) (Hostsfile, error) {
 		return Hostsfile{}, err
 	}
 	return h, nil
-}
-
-// Return the text representation of the hosts file.
-func Encode(w io.Writer, h Hostsfile) error {
-	for _, record := range h.records {
-		var toWrite string
-		if record.isBlank {
-			toWrite = ""
-		} else if len(record.comment) > 0 {
-			toWrite = record.comment
-		} else {
-			out := make([]string, len(record.Hostnames))
-			i := 0
-			for name := range record.Hostnames {
-				out[i] = name
-				i++
-			}
-			sort.Strings(out)
-			out = append([]string{record.IpAddress.String()}, out...)
-			toWrite = strings.Join(out, " ")
-		}
-		toWrite += eol
-		_, err := w.Write([]byte(toWrite))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

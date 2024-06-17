@@ -31,9 +31,6 @@
 package hostsfile
 
 import (
-	"bytes"
-	"fmt"
-	"net"
 	"strings"
 	"testing"
 
@@ -50,7 +47,7 @@ func TestDecode(t *testing.T) {
 	firstRecord := h.records[0]
 
 	require.Equal(t, firstRecord.IpAddress.IP.String(), "127.0.0.1")
-	require.Equal(t, firstRecord.Hostnames["foobar"], true)
+	require.Equal(t, firstRecord.Matches("foobar"), true)
 	require.Equal(t, len(firstRecord.Hostnames), 1)
 
 	require.Equal(t, h.records[1].comment, "# this is a comment")
@@ -61,7 +58,7 @@ func TestDecode(t *testing.T) {
 	require.NoError(t, err)
 	hns := h.records[0].Hostnames
 	require.Equal(t, len(hns), 4)
-	require.Equal(t, hns["alias3"], true)
+	require.Contains(t, hns, "alias3.")
 
 	badline := strings.NewReader("blah")
 	h, err = Decode(badline)
@@ -74,115 +71,10 @@ func TestDecode(t *testing.T) {
 
 	h, err = Decode(strings.NewReader("##\n127.0.0.1\tlocalhost    2nd-alias"))
 	require.NoError(t, err)
-	require.Equal(t, h.records[1].Hostnames["2nd-alias"], true)
+	require.Contains(t, h.records[1].Hostnames, "2nd-alias.")
 
 	h, err = Decode(strings.NewReader("##\n127.0.0.1\tlocalhost # a comment"))
 	require.NoError(t, err)
-	require.Equal(t, h.records[0].Hostnames["#"], false)
-	require.Equal(t, h.records[0].Hostnames["a"], false)
-}
-
-func sample(t *testing.T) Hostsfile {
-	one27, err := net.ResolveIPAddr("ip", "127.0.0.1")
-	require.NoError(t, err)
-	one92, err := net.ResolveIPAddr("ip", "192.168.0.1")
-	require.NoError(t, err)
-	oneip6, err := net.ResolveIPAddr("ip", "fe80::1%lo0")
-	require.NoError(t, err)
-	return Hostsfile{
-		records: []*Record{
-			{
-				IpAddress: *one27,
-				Hostnames: map[string]bool{"foobar": true},
-			},
-			{
-				IpAddress: *one92,
-				Hostnames: map[string]bool{"bazbaz": true, "blahbar": true},
-			},
-			{
-				IpAddress: *oneip6,
-				Hostnames: map[string]bool{"bazbaz": true},
-			},
-		},
-	}
-}
-
-func comment(t *testing.T) Hostsfile {
-	one92, err := net.ResolveIPAddr("ip", "192.168.0.1")
-	require.NoError(t, err)
-	return Hostsfile{
-		records: []*Record{
-			{
-				comment: "# Don't delete this line!",
-			},
-			{
-				comment: "shouldnt matter",
-				isBlank: true,
-			},
-			{
-				IpAddress: *one92,
-				Hostnames: map[string]bool{"bazbaz": true},
-			},
-		},
-	}
-}
-
-func TestEncode(t *testing.T) {
-	t.Parallel()
-	b := new(bytes.Buffer)
-	err := Encode(b, sample(t))
-	require.NoError(t, err)
-	require.Equal(t, b.String(), "127.0.0.1 foobar\n192.168.0.1 bazbaz blahbar\nfe80::1%lo0 bazbaz\n")
-
-	b.Reset()
-	err = Encode(b, comment(t))
-	require.NoError(t, err)
-	require.Equal(t, b.String(), "# Don't delete this line!\n\n192.168.0.1 bazbaz\n")
-}
-
-func TestRemove(t *testing.T) {
-	t.Parallel()
-	hCopy := sample(t)
-	require.Equal(t, len(hCopy.records[1].Hostnames), 2)
-	hCopy.Remove("bazbaz")
-	require.Equal(t, len(hCopy.records[1].Hostnames), 1)
-	ok := hCopy.records[1].Hostnames["blahbar"]
-	require.True(t, ok, fmt.Sprintf("item \"blahbar\" not found in %v", hCopy.records[1].Hostnames))
-	hCopy.Remove("blahbar")
-	require.Equal(t, len(hCopy.records), 1)
-}
-
-func TestProtocols(t *testing.T) {
-	t.Parallel()
-	one92, _ := net.ResolveIPAddr("ip", "192.168.3.7")
-	ip6, _ := net.ResolveIPAddr("ip", "::1")
-	require.Equal(t, matchProtocols(one92.IP, ip6.IP), false)
-	require.Equal(t, matchProtocols(one92.IP, one92.IP), true)
-	require.Equal(t, matchProtocols(ip6.IP, ip6.IP), true)
-}
-
-func TestSet(t *testing.T) {
-	t.Parallel()
-	hCopy := sample(t)
-	one0, err := net.ResolveIPAddr("ip", "10.0.0.1")
-	require.NoError(t, err)
-	require.NoError(t, hCopy.Set(*one0, "tendot"))
-	require.Equal(t, len(hCopy.records), 4)
-	require.Equal(t, hCopy.records[3].Hostnames["tendot"], true)
-	require.Equal(t, hCopy.records[3].IpAddress.String(), "10.0.0.1")
-
-	// appending same element shouldn't change anything
-	require.NoError(t, hCopy.Set(*one0, "tendot"))
-	require.Equal(t, len(hCopy.records), 4)
-
-	one92, err := net.ResolveIPAddr("ip", "192.168.3.7")
-	require.NoError(t, err)
-	require.NoError(t, hCopy.Set(*one92, "tendot"))
-	require.Equal(t, hCopy.records[3].IpAddress.String(), "192.168.3.7")
-
-	ip6, err := net.ResolveIPAddr("ip", "::1")
-	require.NoError(t, err)
-	require.NoError(t, hCopy.Set(*ip6, "tendot"))
-	require.Equal(t, len(hCopy.records), 5)
-	require.Equal(t, hCopy.records[4].IpAddress.String(), "::1")
+	require.NotContains(t, h.records[0].Hostnames, "#.")
+	require.NotContains(t, h.records[0].Hostnames, "a.")
 }

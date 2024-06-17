@@ -20,7 +20,9 @@ test:
   COPY go.mod go.sum .
   RUN go mod download
   COPY . .
-  RUN go test -coverprofile=coverage.out -v ./...
+  HOST demo.example.com 127.0.1.1
+  RUN --privileged hostname demo.example.com \
+    && go test -coverprofile=coverage.out -v ./...
   SAVE ARTIFACT coverage.out AS LOCAL coverage.out
   WORKDIR /workspace/examples
   RUN for example in $(find . -name 'main.go'); do \

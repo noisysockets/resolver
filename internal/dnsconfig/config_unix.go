@@ -49,6 +49,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/miekg/dns"
 )
 
 // Location is the location of the system DNS configuration.
@@ -104,13 +106,13 @@ func Read(filename string) (*Config, error) {
 
 		case "domain": // set search path to just this domain
 			if len(f) > 1 {
-				conf.Search = []string{ensureRooted(f[1])}
+				conf.Search = []string{dns.CanonicalName(f[1])}
 			}
 
 		case "search": // set search path to given servers
 			conf.Search = make([]string, 0, len(f)-1)
 			for i := 1; i < len(f); i++ {
-				name := ensureRooted(f[i])
+				name := dns.CanonicalName(f[i])
 				if name == "." {
 					continue
 				}
@@ -195,20 +197,16 @@ func Read(filename string) (*Config, error) {
 }
 
 func dnsDefaultSearch() []string {
-	hn, err := getHostname()
+	hn, err := getFqdnHostname()
 	if err != nil {
 		// best effort
 		return nil
 	}
-	if i := strings.IndexByte(hn, '.'); i >= 0 && i < len(hn)-1 {
-		return []string{ensureRooted(hn[i+1:])}
-	}
-	return nil
-}
 
-func ensureRooted(s string) string {
-	if len(s) > 0 && s[len(s)-1] == '.' {
-		return s
+	labels := dns.SplitDomainName(hn)
+	if len(labels) <= 1 {
+		return nil
 	}
-	return s + "."
+
+	return []string{dns.CanonicalName(strings.Join(labels[1:], "."))}
 }

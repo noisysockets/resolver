@@ -73,7 +73,7 @@ func Hosts(conf *HostsResolverConfig) (*HostsResolver, error) {
 		}
 
 		for _, record := range h.Records() {
-			for name := range record.Hostnames {
+			for _, name := range record.Hostnames {
 				name = dns.Fqdn(name)
 
 				addr, err := netip.ParseAddr(record.IpAddress.String())

@@ -40,13 +40,14 @@
 package dnsconfig
 
 import (
-	"os"
 	"time"
+
+	"github.com/noisysockets/resolver/internal/fqdn"
 )
 
 var (
-	defaultNS   = []string{"127.0.0.1:53", "[::1]:53"}
-	getHostname = os.Hostname // variable for testing
+	defaultNS       = []string{"127.0.0.1:53", "[::1]:53"}
+	getFqdnHostname = fqdn.Hostname // variable for testing
 )
 
 // Config is the system DNS configuration.
